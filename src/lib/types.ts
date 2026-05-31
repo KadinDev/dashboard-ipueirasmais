@@ -1,0 +1,178 @@
+export type ContentStatus = "draft" | "published" | "paused" | "archived";
+export type EntityKind = "company" | "event" | "news" | "banner";
+export type PlacementKind =
+  | "basic"
+  | "featured"
+  | "super_featured"
+  | "home_banner"
+  | "event_featured";
+export type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "overdue"
+  | "cancelled"
+  | "refunded";
+
+export type City = {
+  id: string;
+  name: string;
+  state_code: string;
+  slug: string;
+};
+
+export type Category = {
+  id: string;
+  city_id: string;
+  kind: "company" | "event" | "news";
+  name: string;
+  slug: string;
+};
+
+export type Company = {
+  id: string;
+  city_id: string;
+  category_id: string | null;
+  name: string;
+  slug: string;
+  subtitle: string | null;
+  short_description: string | null;
+  description: string | null;
+  logo_media_id?: string | null;
+  cover_media_id?: string | null;
+  rating: number | null;
+  rating_count: number | null;
+  address_line: string | null;
+  neighborhood: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  status: ContentStatus;
+  manual_priority: number;
+  listing_paid_amount_cents?: number;
+  listing_payment_status?: PaymentStatus;
+  listing_paid_until?: string | null;
+  billing_notes?: string | null;
+};
+
+export type CompanyContact = {
+  id: string;
+  company_id: string;
+  kind: "whatsapp" | "phone" | "instagram" | "website" | "maps" | "email";
+  label: string | null;
+  value: string;
+  is_primary: boolean;
+  sort_order: number;
+};
+
+export type CompanyHour = {
+  id: string;
+  company_id: string;
+  day_of_week: number;
+  opens_at: string | null;
+  closes_at: string | null;
+  is_closed: boolean;
+  note: string | null;
+};
+
+export type EventItem = {
+  id: string;
+  city_id: string;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  short_description: string | null;
+  description: string | null;
+  cover_media_id?: string | null;
+  venue_name: string | null;
+  address_line: string | null;
+  neighborhood: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  starts_at: string;
+  ends_at: string | null;
+  is_free: boolean;
+  price_label: string | null;
+  ticket_url: string | null;
+  whatsapp: string | null;
+  show_add_to_calendar?: boolean;
+  status: ContentStatus;
+  manual_priority: number;
+  paid_amount_cents?: number;
+  payment_status?: PaymentStatus;
+  billing_notes?: string | null;
+};
+
+export type Banner = {
+  id: string;
+  city_id: string;
+  title: string;
+  subtitle: string | null;
+  image_media_id?: string | null;
+  action_label: string | null;
+  action_url: string | null;
+  status: ContentStatus;
+  starts_at: string | null;
+  ends_at: string | null;
+  manual_priority: number;
+  paid_amount_cents?: number;
+  payment_status?: PaymentStatus;
+  notes?: string | null;
+};
+
+export type NewsItem = {
+  id: string;
+  city_id: string;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string | null;
+  cover_media_id?: string | null;
+  status: ContentStatus;
+  published_at: string | null;
+};
+
+export type Plan = {
+  id: string;
+  name: string;
+  target_entity: EntityKind;
+  placement_type: PlacementKind;
+  price_cents: number;
+  duration_days: number | null;
+  is_active: boolean;
+};
+
+export type Placement = {
+  id: string;
+  city_id: string;
+  entity_type: EntityKind;
+  entity_id: string;
+  plan_id: string | null;
+  placement_type: PlacementKind;
+  starts_at: string;
+  ends_at: string | null;
+  priority: number;
+  paid_amount_cents: number;
+  payment_status: PaymentStatus;
+  is_active: boolean;
+  notes: string | null;
+};
+
+export type ClickSummary = {
+  day: string;
+  entity_type: EntityKind;
+  entity_id: string;
+  click_type: string;
+  total: number;
+};
+
+export type NotificationItem = {
+  id: string;
+  city_id: string;
+  title: string;
+  body: string | null;
+  entity_type: EntityKind | null;
+  entity_id: string | null;
+  image_media_id?: string | null;
+  status: ContentStatus;
+  published_at: string | null;
+};
