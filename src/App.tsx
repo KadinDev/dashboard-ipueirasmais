@@ -128,13 +128,7 @@ function fileValue(form: FormData, name: string) {
   return value instanceof File && value.size > 0 ? value : null;
 }
 
-function ImagePreviewInput({
-  name,
-  label,
-}: {
-  name: string;
-  label: string;
-}) {
+function ImagePreviewInput({ name, label }: { name: string; label: string }) {
   const [previewUrl, setPreviewUrl] = useState("");
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -615,7 +609,9 @@ function CompaniesSection({
         subtitle: null,
         short_description: null,
         description: textValue(form.get("description")) || null,
-        rating: textValue(form.get("rating")) ? Number(form.get("rating")) : null,
+        rating: textValue(form.get("rating"))
+          ? Number(form.get("rating"))
+          : null,
         rating_count: textValue(form.get("rating_count"))
           ? Number(form.get("rating_count"))
           : null,
@@ -648,15 +644,23 @@ function CompaniesSection({
         );
       } else {
         const created = await assertNoError(
-          await supabase.from("companies").insert(payload).select("id").single(),
+          await supabase
+            .from("companies")
+            .insert(payload)
+            .select("id")
+            .single(),
         );
-        if (!created.data) throw new Error("Empresa criada, mas o Supabase não retornou o ID.");
+        if (!created.data)
+          throw new Error("Empresa criada, mas o Supabase não retornou o ID.");
         companyId = created.data.id;
       }
 
       if (companyId) {
         await assertNoError(
-          await supabase.from("company_contacts").delete().eq("company_id", companyId),
+          await supabase
+            .from("company_contacts")
+            .delete()
+            .eq("company_id", companyId),
         );
         const nextContacts = [
           {
@@ -666,27 +670,27 @@ function CompaniesSection({
             is_primary: true,
             sort_order: 10,
           },
-        {
-          kind: "phone",
-          label: "Ligar",
-          value: textValue(form.get("phone")),
-          is_primary: true,
-          sort_order: 20,
-        },
-        {
-          kind: "instagram",
-          label: "Instagram",
-          value: textValue(form.get("instagram")),
-          is_primary: true,
-          sort_order: 30,
-        },
-        {
-          kind: "maps",
-          label: "Rota",
-          value: textValue(form.get("maps")),
-          is_primary: true,
-          sort_order: 40,
-        },
+          {
+            kind: "phone",
+            label: "Ligar",
+            value: textValue(form.get("phone")),
+            is_primary: true,
+            sort_order: 20,
+          },
+          {
+            kind: "instagram",
+            label: "Instagram",
+            value: textValue(form.get("instagram")),
+            is_primary: true,
+            sort_order: 30,
+          },
+          {
+            kind: "maps",
+            label: "Rota",
+            value: textValue(form.get("maps")),
+            is_primary: true,
+            sort_order: 40,
+          },
         ].filter((contact) => contact.value);
 
         if (nextContacts.length > 0) {
@@ -701,7 +705,10 @@ function CompaniesSection({
         }
 
         await assertNoError(
-          await supabase.from("company_hours").delete().eq("company_id", companyId),
+          await supabase
+            .from("company_hours")
+            .delete()
+            .eq("company_id", companyId),
         );
         const nextHours = dayLabels
           .filter((day) => form.get(`works_${day.value}`) === "on")
@@ -715,7 +722,9 @@ function CompaniesSection({
           }));
 
         if (nextHours.length > 0) {
-          await assertNoError(await supabase.from("company_hours").insert(nextHours));
+          await assertNoError(
+            await supabase.from("company_hours").insert(nextHours),
+          );
         }
       }
 
@@ -825,7 +834,9 @@ function CompaniesSection({
                 type="number"
                 min="0"
                 step="0.01"
-                defaultValue={(editing?.listing_paid_amount_cents || 3000) / 100}
+                defaultValue={
+                  (editing?.listing_paid_amount_cents || 3000) / 100
+                }
               />
             </Field>
             <Field>
@@ -1082,7 +1093,9 @@ function EventsSection({
       };
 
       if (editing) {
-        await assertNoError(await supabase.from("events").update(payload).eq("id", editing.id));
+        await assertNoError(
+          await supabase.from("events").update(payload).eq("id", editing.id),
+        );
       } else {
         await assertNoError(await supabase.from("events").insert(payload));
       }
@@ -1151,7 +1164,8 @@ function EventsSection({
               </Select>
             </Field>
             <Field>
-              Início
+              Início do evento
+              <Muted>Data e hora real em que o evento começa.</Muted>
               <Input
                 name="starts_at"
                 type="datetime-local"
@@ -1160,7 +1174,8 @@ function EventsSection({
               />
             </Field>
             <Field>
-              Fim
+              Fim do evento
+              <Muted>Data e hora em que o evento termina, se você souber.</Muted>
               <Input
                 name="ends_at"
                 type="datetime-local"
@@ -1391,7 +1406,9 @@ function NewsSection({
       };
 
       if (editing) {
-        await assertNoError(await supabase.from("news").update(payload).eq("id", editing.id));
+        await assertNoError(
+          await supabase.from("news").update(payload).eq("id", editing.id),
+        );
       } else {
         await assertNoError(await supabase.from("news").insert(payload));
       }
@@ -1712,7 +1729,9 @@ function PlacementsSection({
           new Date().toISOString(),
         ends_at: toIsoOrNull(textValue(form.get("ends_at"))),
         priority: Number(form.get("priority") || 10),
-        paid_amount_cents: Math.round(Number(form.get("paid_amount") || 0) * 100),
+        paid_amount_cents: Math.round(
+          Number(form.get("paid_amount") || 0) * 100,
+        ),
         payment_status: textValue(form.get("payment_status")) || "paid",
         is_active: true,
         notes: textValue(form.get("notes")) || null,
@@ -1812,11 +1831,13 @@ function PlacementsSection({
               </Select>
             </Field>
             <Field>
-              Início
+              Início do destaque
+              <Muted>Quando este item começa a aparecer como destaque no app.</Muted>
               <Input name="starts_at" type="datetime-local" />
             </Field>
             <Field>
-              Fim
+              Fim do destaque
+              <Muted>Quando este item para de aparecer como destaque no app.</Muted>
               <Input name="ends_at" type="datetime-local" />
             </Field>
             <Field>
@@ -1927,14 +1948,18 @@ function BannersSection({
         starts_at: toIsoOrNull(textValue(form.get("starts_at"))),
         ends_at: toIsoOrNull(textValue(form.get("ends_at"))),
         manual_priority: Number(form.get("manual_priority") || 100),
-        paid_amount_cents: Math.round(Number(form.get("paid_amount") || 0) * 100),
+        paid_amount_cents: Math.round(
+          Number(form.get("paid_amount") || 0) * 100,
+        ),
         payment_status: textValue(form.get("payment_status")) || "paid",
         notes: textValue(form.get("notes")) || null,
         ...(imageId ? { image_media_id: imageId } : {}),
       };
 
       if (editing) {
-        await assertNoError(await supabase.from("banners").update(payload).eq("id", editing.id));
+        await assertNoError(
+          await supabase.from("banners").update(payload).eq("id", editing.id),
+        );
       } else {
         await assertNoError(await supabase.from("banners").insert(payload));
       }
@@ -1976,22 +2001,21 @@ function BannersSection({
               </Select>
             </Field>
             <Field>
-              Botão
+              Contato WhatsApp
               <Input
                 name="action_label"
-                defaultValue={editing?.action_label || ""}
-                placeholder="Ver evento, Abrir WhatsApp..."
+                defaultValue={editing?.action_label || "55"}
+                placeholder="5588999999999"
               />
             </Field>
+            <Input
+              name="action_url"
+              type="hidden"
+              defaultValue={editing?.action_url || ""}
+            />
             <Field>
-              Link do botão
-              <Input
-                name="action_url"
-                defaultValue={editing?.action_url || ""}
-              />
-            </Field>
-            <Field>
-              Início
+              Início da exibição do banner
+              <Muted>Quando o banner começa a ficar visível na Home.</Muted>
               <Input
                 name="starts_at"
                 type="datetime-local"
@@ -1999,7 +2023,8 @@ function BannersSection({
               />
             </Field>
             <Field>
-              Fim
+              Fim da exibição do banner
+              <Muted>Quando o banner para de aparecer na Home.</Muted>
               <Input
                 name="ends_at"
                 type="datetime-local"
@@ -2026,7 +2051,10 @@ function BannersSection({
             </Field>
             <Field>
               Pagamento
-              <Select name="payment_status" defaultValue={editing?.payment_status || "paid"}>
+              <Select
+                name="payment_status"
+                defaultValue={editing?.payment_status || "paid"}
+              >
                 <option value="pending">Pendente</option>
                 <option value="paid">Pago</option>
                 <option value="overdue">Atrasado</option>
