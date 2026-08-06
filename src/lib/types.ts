@@ -1,5 +1,14 @@
 export type ContentStatus = "draft" | "published" | "paused" | "archived";
-export type EntityKind = "company" | "event" | "news" | "banner";
+export type EntityKind =
+  | "company"
+  | "event"
+  | "news"
+  | "banner"
+  | "promotion"
+  | "job"
+  | "alert"
+  | "city_update"
+  | "pharmacy";
 export type PlacementKind =
   | "basic"
   | "featured"
@@ -23,7 +32,15 @@ export type City = {
 export type Category = {
   id: string;
   city_id: string;
-  kind: "company" | "event" | "news";
+  kind:
+    | "company"
+    | "event"
+    | "news"
+    | "promotion"
+    | "job"
+    | "alert"
+    | "city_update"
+    | "pharmacy";
   name: string;
   slug: string;
 };
@@ -176,4 +193,104 @@ export type NotificationItem = {
   image_media_id?: string | null;
   status: ContentStatus;
   published_at: string | null;
+};
+
+export type Promotion = {
+  id: string;
+  city_id: string;
+  company_id: string | null;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  description: string | null;
+  old_price_cents: number | null;
+  new_price_cents: number | null;
+  price_label: string | null;
+  valid_until: string | null;
+  whatsapp: string | null;
+  image_media_id?: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+  created_at?: string;
+};
+
+export type Job = {
+  id: string;
+  city_id: string;
+  company_id: string | null;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  company_name: string | null;
+  location_label: string | null;
+  contract_type: string | null;
+  salary_label: string | null;
+  description: string | null;
+  requirements: string | null;
+  application_url: string | null;
+  whatsapp: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+};
+
+export type AlertItem = {
+  id: string;
+  city_id: string;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  summary: string | null;
+  body: string | null;
+  importance: "normal" | "important" | "urgent";
+  affected_areas: string | null;
+  expected_resolution: string | null;
+  image_media_id?: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+};
+
+export type CityUpdate = {
+  id: string;
+  city_id: string;
+  related_entity_type: EntityKind | null;
+  related_entity_id: string | null;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  summary: string | null;
+  body: string | null;
+  image_media_id?: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+};
+
+export type Pharmacy = {
+  id: string;
+  city_id: string;
+  company_id: string | null;
+  name: string;
+  slug: string;
+  whatsapp: string | null;
+  phone: string | null;
+  address_line: string | null;
+  neighborhood: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  logo_media_id?: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+};
+
+export type PharmacyDutyShift = {
+  id: string;
+  city_id: string;
+  pharmacy_id: string;
+  starts_at: string;
+  ends_at: string;
+  note: string | null;
+  status: ContentStatus;
 };

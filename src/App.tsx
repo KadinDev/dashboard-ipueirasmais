@@ -2,15 +2,20 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
   BarChart3,
+  BadgePercent,
   Building2,
   CalendarDays,
+  Briefcase,
   Crown,
   Bell,
+  Cross,
+  AlertTriangle,
   LayoutDashboard,
   LogOut,
   Megaphone,
   Newspaper,
   RefreshCcw,
+  Sparkles,
 } from "lucide-react";
 import {
   Badge,
@@ -43,23 +48,34 @@ import { hasSupabaseEnv, supabase } from "./lib/supabase";
 import { centsToBRL, dateInputValue, slugify, toIsoOrNull } from "./lib/format";
 import type {
   Banner,
+  AlertItem,
   Category,
   City,
+  CityUpdate,
   ClickSummary,
   Company,
   CompanyContact,
   CompanyHour,
   EventItem,
+  Job,
   NewsItem,
   NotificationItem,
+  Pharmacy,
+  PharmacyDutyShift,
   Placement,
   Plan,
+  Promotion,
 } from "./lib/types";
 
 type Tab =
   | "overview"
   | "companies"
   | "events"
+  | "promotions"
+  | "jobs"
+  | "alerts"
+  | "cityUpdates"
+  | "pharmacies"
   | "news"
   | "notifications"
   | "placements"
@@ -70,6 +86,11 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "overview", label: "Resumo", icon: LayoutDashboard },
   { id: "companies", label: "Empresas", icon: Building2 },
   { id: "events", label: "Eventos", icon: CalendarDays },
+  { id: "promotions", label: "Promoções", icon: BadgePercent },
+  { id: "jobs", label: "Vagas", icon: Briefcase },
+  { id: "alerts", label: "Avisos", icon: AlertTriangle },
+  { id: "cityUpdates", label: "Novidades", icon: Sparkles },
+  { id: "pharmacies", label: "Farmácias", icon: Cross },
   { id: "news", label: "Notícias", icon: Newspaper },
   { id: "notifications", label: "Notificações", icon: Bell },
   { id: "placements", label: "Destaques", icon: Crown },
@@ -297,6 +318,14 @@ function AdminDashboard() {
   const [companyContacts, setCompanyContacts] = useState<CompanyContact[]>([]);
   const [companyHours, setCompanyHours] = useState<CompanyHour[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [cityUpdates, setCityUpdates] = useState<CityUpdate[]>([]);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [pharmacyShifts, setPharmacyShifts] = useState<PharmacyDutyShift[]>(
+    [],
+  );
   const [news, setNews] = useState<NewsItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -321,6 +350,27 @@ function AdminDashboard() {
       supabase.from("company_contacts").select("*").order("sort_order"),
       supabase.from("company_hours").select("*").order("day_of_week"),
       supabase.from("events").select("*").order("starts_at"),
+      supabase
+        .from("promotions")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("jobs")
+        .select("*")
+        .order("published_at", { ascending: false }),
+      supabase
+        .from("alerts")
+        .select("*")
+        .order("published_at", { ascending: false }),
+      supabase
+        .from("city_updates")
+        .select("*")
+        .order("published_at", { ascending: false }),
+      supabase.from("pharmacies").select("*").order("manual_priority"),
+      supabase
+        .from("pharmacy_duty_shifts")
+        .select("*")
+        .order("starts_at", { ascending: false }),
       supabase
         .from("news")
         .select("*")
@@ -352,12 +402,18 @@ function AdminDashboard() {
       setCompanyContacts((requests[3].data || []) as CompanyContact[]);
       setCompanyHours((requests[4].data || []) as CompanyHour[]);
       setEvents((requests[5].data || []) as EventItem[]);
-      setNews((requests[6].data || []) as NewsItem[]);
-      setNotifications((requests[7].data || []) as NotificationItem[]);
-      setBanners((requests[8].data || []) as Banner[]);
-      setPlans((requests[9].data || []) as Plan[]);
-      setPlacements((requests[10].data || []) as Placement[]);
-      setMetrics((requests[11].data || []) as ClickSummary[]);
+      setPromotions((requests[6].data || []) as Promotion[]);
+      setJobs((requests[7].data || []) as Job[]);
+      setAlerts((requests[8].data || []) as AlertItem[]);
+      setCityUpdates((requests[9].data || []) as CityUpdate[]);
+      setPharmacies((requests[10].data || []) as Pharmacy[]);
+      setPharmacyShifts((requests[11].data || []) as PharmacyDutyShift[]);
+      setNews((requests[12].data || []) as NewsItem[]);
+      setNotifications((requests[13].data || []) as NotificationItem[]);
+      setBanners((requests[14].data || []) as Banner[]);
+      setPlans((requests[15].data || []) as Plan[]);
+      setPlacements((requests[16].data || []) as Placement[]);
+      setMetrics((requests[17].data || []) as ClickSummary[]);
     }
 
     setLoading(false);
@@ -372,6 +428,18 @@ function AdminDashboard() {
   );
   const eventCategories = categories.filter(
     (category) => category.kind === "event",
+  );
+  const promotionCategories = categories.filter(
+    (category) => category.kind === "promotion",
+  );
+  const jobCategories = categories.filter(
+    (category) => category.kind === "job",
+  );
+  const alertCategories = categories.filter(
+    (category) => category.kind === "alert",
+  );
+  const cityUpdateCategories = categories.filter(
+    (category) => category.kind === "city_update",
   );
   const newsCategories = categories.filter(
     (category) => category.kind === "news",
@@ -431,6 +499,10 @@ function AdminDashboard() {
           <Overview
             companies={companies}
             events={events}
+            promotions={promotions}
+            jobs={jobs}
+            alerts={alerts}
+            cityUpdates={cityUpdates}
             banners={banners}
             activePlacements={activePlacements.length}
             totalClicks={totalClicks}
@@ -453,6 +525,58 @@ function AdminDashboard() {
             cityId={cityId}
             events={events}
             categories={eventCategories}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "promotions" && (
+          <PromotionsSection
+            cityId={cityId}
+            promotions={promotions}
+            companies={companies}
+            categories={promotionCategories}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "jobs" && (
+          <JobsSection
+            cityId={cityId}
+            jobs={jobs}
+            companies={companies}
+            categories={jobCategories}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "alerts" && (
+          <AlertsSection
+            cityId={cityId}
+            alerts={alerts}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "cityUpdates" && (
+          <CityUpdatesSection
+            cityId={cityId}
+            updates={cityUpdates}
+            categories={cityUpdateCategories}
+            companies={companies}
+            events={events}
+            promotions={promotions}
+            jobs={jobs}
+            alerts={alerts}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "pharmacies" && (
+          <PharmaciesSection
+            cityId={cityId}
+            pharmacies={pharmacies}
+            shifts={pharmacyShifts}
+            companies={companies}
             onSaved={loadData}
           />
         )}
@@ -500,6 +624,11 @@ function AdminDashboard() {
             metrics={metrics}
             companies={companies}
             events={events}
+            promotions={promotions}
+            jobs={jobs}
+            alerts={alerts}
+            cityUpdates={cityUpdates}
+            pharmacies={pharmacies}
           />
         )}
       </Main>
@@ -510,12 +639,20 @@ function AdminDashboard() {
 function Overview({
   companies,
   events,
+  promotions,
+  jobs,
+  alerts,
+  cityUpdates,
   banners,
   activePlacements,
   totalClicks,
 }: {
   companies: Company[];
   events: EventItem[];
+  promotions: Promotion[];
+  jobs: Job[];
+  alerts: AlertItem[];
+  cityUpdates: CityUpdate[];
   banners: Banner[];
   activePlacements: number;
   totalClicks: number;
@@ -540,6 +677,30 @@ function Overview({
       <Card>
         <Muted>Destaques ativos</Muted>
         <StatValue>{activePlacements}</StatValue>
+      </Card>
+      <Card>
+        <Muted>Promoções publicadas</Muted>
+        <StatValue>
+          {promotions.filter((item) => item.status === "published").length}
+        </StatValue>
+      </Card>
+      <Card>
+        <Muted>Vagas publicadas</Muted>
+        <StatValue>
+          {jobs.filter((item) => item.status === "published").length}
+        </StatValue>
+      </Card>
+      <Card>
+        <Muted>Avisos publicados</Muted>
+        <StatValue>
+          {alerts.filter((item) => item.status === "published").length}
+        </StatValue>
+      </Card>
+      <Card>
+        <Muted>Novidades publicadas</Muted>
+        <StatValue>
+          {cityUpdates.filter((item) => item.status === "published").length}
+        </StatValue>
       </Card>
       <Card>
         <Muted>Cliques registrados</Muted>
@@ -1365,6 +1526,1327 @@ function EventsSection({
   );
 }
 
+function PromotionsSection({
+  cityId,
+  promotions,
+  companies,
+  categories,
+  onSaved,
+}: {
+  cityId: string;
+  promotions: Promotion[];
+  companies: Company[];
+  categories: Category[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<Promotion | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const title = textValue(form.get("title"));
+      const imageFile = fileValue(form, "image");
+      const imageId = imageFile
+        ? await uploadMedia(imageFile, "promotions", title)
+        : null;
+      const status = textValue(form.get("status"));
+      const payload = {
+        city_id: cityId,
+        company_id: textValue(form.get("company_id")) || null,
+        category_id: textValue(form.get("category_id")) || null,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        description: textValue(form.get("description")) || null,
+        old_price_cents: textValue(form.get("old_price"))
+          ? Math.round(Number(form.get("old_price")) * 100)
+          : null,
+        new_price_cents: textValue(form.get("new_price"))
+          ? Math.round(Number(form.get("new_price")) * 100)
+          : null,
+        price_label: textValue(form.get("price_label")) || null,
+        valid_until: toIsoOrNull(textValue(form.get("valid_until"))),
+        whatsapp: textValue(form.get("whatsapp")) || null,
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+        ...(imageId ? { image_media_id: imageId } : {}),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("promotions")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("promotions").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Promoção salva com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archivePromotion(id: string) {
+    await supabase.from("promotions").update({ status: "archived" }).eq("id", id);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <EditorCard title={editing ? "Editar promoção" : "Nova promoção"}>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Título
+              <Input name="title" required defaultValue={editing?.title || ""} />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Empresa relacionada
+              <Select name="company_id" defaultValue={editing?.company_id || ""}>
+                <option value="">Sem empresa</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Categoria
+              <Select
+                name="category_id"
+                defaultValue={editing?.category_id || ""}
+              >
+                <option value="">Sem categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Preço antigo
+              <Input
+                name="old_price"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={
+                  editing?.old_price_cents ? editing.old_price_cents / 100 : ""
+                }
+              />
+            </Field>
+            <Field>
+              Preço novo
+              <Input
+                name="new_price"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={
+                  editing?.new_price_cents ? editing.new_price_cents / 100 : ""
+                }
+              />
+            </Field>
+            <Field>
+              Texto do preço
+              <Input
+                name="price_label"
+                placeholder="Ex: por R$ 29,90"
+                defaultValue={editing?.price_label || ""}
+              />
+            </Field>
+            <Field>
+              Válida até
+              <Input
+                name="valid_until"
+                type="datetime-local"
+                defaultValue={dateInputValue(editing?.valid_until)}
+              />
+            </Field>
+            <Field>
+              WhatsApp
+              <Input
+                name="whatsapp"
+                placeholder="5588999999999"
+                defaultValue={editing?.whatsapp || ""}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <ImagePreviewInput name="image" label="Imagem da promoção" />
+          </FormGrid>
+          <Field>
+            Descrição
+            <TextArea
+              name="description"
+              defaultValue={editing?.description || ""}
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar promoção"
+                  : "Criar promoção"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Promoções cadastradas"
+        empty="Nenhuma promoção cadastrada ainda."
+        headers={["Título", "Empresa", "Status", "Validade", "Ações"]}
+      >
+        {promotions.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.price_label || item.description}</Muted>
+            </td>
+            <td>
+              {companies.find((company) => company.id === item.company_id)
+                ?.name || "Sem empresa"}
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              {item.valid_until
+                ? new Date(item.valid_until).toLocaleDateString("pt-BR")
+                : "Sem validade"}
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => archivePromotion(item.id)}
+                >
+                  Arquivar
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function JobsSection({
+  cityId,
+  jobs,
+  companies,
+  categories,
+  onSaved,
+}: {
+  cityId: string;
+  jobs: Job[];
+  companies: Company[];
+  categories: Category[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<Job | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const title = textValue(form.get("title"));
+      const status = textValue(form.get("status"));
+      const payload = {
+        city_id: cityId,
+        company_id: textValue(form.get("company_id")) || null,
+        category_id: textValue(form.get("category_id")) || null,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        company_name: textValue(form.get("company_name")) || null,
+        location_label: textValue(form.get("location_label")) || null,
+        contract_type: textValue(form.get("contract_type")) || null,
+        salary_label: textValue(form.get("salary_label")) || null,
+        description: textValue(form.get("description")) || null,
+        requirements: textValue(form.get("requirements")) || null,
+        application_url: textValue(form.get("application_url")) || null,
+        whatsapp: textValue(form.get("whatsapp")) || null,
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase.from("jobs").update(payload).eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("jobs").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Vaga salva com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveJob(id: string) {
+    await supabase.from("jobs").update({ status: "archived" }).eq("id", id);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <EditorCard title={editing ? "Editar vaga" : "Nova vaga"}>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Cargo
+              <Input name="title" required defaultValue={editing?.title || ""} />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Empresa relacionada
+              <Select name="company_id" defaultValue={editing?.company_id || ""}>
+                <option value="">Sem empresa</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Nome da empresa
+              <Input
+                name="company_name"
+                placeholder="Use se não vinculou uma empresa"
+                defaultValue={editing?.company_name || ""}
+              />
+            </Field>
+            <Field>
+              Categoria
+              <Select
+                name="category_id"
+                defaultValue={editing?.category_id || ""}
+              >
+                <option value="">Sem categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Local
+              <Input
+                name="location_label"
+                placeholder="Ipueiras - CE"
+                defaultValue={editing?.location_label || ""}
+              />
+            </Field>
+            <Field>
+              Tipo de vaga
+              <Input
+                name="contract_type"
+                placeholder="Tempo integral, meio período..."
+                defaultValue={editing?.contract_type || ""}
+              />
+            </Field>
+            <Field>
+              Salário
+              <Input
+                name="salary_label"
+                placeholder="A combinar"
+                defaultValue={editing?.salary_label || ""}
+              />
+            </Field>
+            <Field>
+              WhatsApp
+              <Input
+                name="whatsapp"
+                placeholder="5588999999999"
+                defaultValue={editing?.whatsapp || ""}
+              />
+            </Field>
+            <Field>
+              Link de candidatura
+              <Input
+                name="application_url"
+                defaultValue={editing?.application_url || ""}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+          </FormGrid>
+          <Field>
+            Descrição da vaga
+            <TextArea
+              name="description"
+              defaultValue={editing?.description || ""}
+            />
+          </Field>
+          <Field>
+            Requisitos
+            <TextArea
+              name="requirements"
+              defaultValue={editing?.requirements || ""}
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar vaga"
+                  : "Criar vaga"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Vagas cadastradas"
+        empty="Nenhuma vaga cadastrada ainda."
+        headers={["Cargo", "Empresa", "Status", "Publicado", "Ações"]}
+      >
+        {jobs.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.location_label || item.contract_type}</Muted>
+            </td>
+            <td>
+              {item.company_name ||
+                companies.find((company) => company.id === item.company_id)
+                  ?.name ||
+                "Sem empresa"}
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              {item.published_at
+                ? new Date(item.published_at).toLocaleDateString("pt-BR")
+                : "Ainda não"}
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button $variant="danger" onClick={() => archiveJob(item.id)}>
+                  Arquivar
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function AlertsSection({
+  cityId,
+  alerts,
+  onSaved,
+}: {
+  cityId: string;
+  alerts: AlertItem[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<AlertItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const title = textValue(form.get("title"));
+      const status = textValue(form.get("status"));
+      const payload = {
+        city_id: cityId,
+        category_id: null,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        summary: textValue(form.get("summary")) || null,
+        body: textValue(form.get("body")) || null,
+        importance: textValue(form.get("importance")) || "normal",
+        affected_areas: textValue(form.get("affected_areas")) || null,
+        expected_resolution: textValue(form.get("expected_resolution")) || null,
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase.from("alerts").update(payload).eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("alerts").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Aviso salvo com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveAlert(id: string) {
+    await supabase.from("alerts").update({ status: "archived" }).eq("id", id);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <EditorCard title={editing ? "Editar aviso" : "Novo aviso"}>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Título
+              <Input name="title" required defaultValue={editing?.title || ""} />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Importância
+              <Select
+                name="importance"
+                defaultValue={editing?.importance || "normal"}
+              >
+                <option value="normal">Normal</option>
+                <option value="important">Importante</option>
+                <option value="urgent">Urgente</option>
+              </Select>
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+          </FormGrid>
+          <Field>
+            Resumo
+            <Input name="summary" defaultValue={editing?.summary || ""} />
+          </Field>
+          <Field>
+            Texto do aviso
+            <TextArea name="body" defaultValue={editing?.body || ""} />
+          </Field>
+          <FormGrid>
+            <Field>
+              Bairros/áreas afetadas
+              <TextArea
+                name="affected_areas"
+                defaultValue={editing?.affected_areas || ""}
+              />
+            </Field>
+            <Field>
+              Previsão de normalização
+              <TextArea
+                name="expected_resolution"
+                defaultValue={editing?.expected_resolution || ""}
+              />
+            </Field>
+          </FormGrid>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar aviso"
+                  : "Criar aviso"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Avisos cadastrados"
+        empty="Nenhum aviso cadastrado ainda."
+        headers={["Título", "Importância", "Status", "Publicado", "Ações"]}
+      >
+        {alerts.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.summary}</Muted>
+            </td>
+            <td>{item.importance}</td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              {item.published_at
+                ? new Date(item.published_at).toLocaleDateString("pt-BR")
+                : "Ainda não"}
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button $variant="danger" onClick={() => archiveAlert(item.id)}>
+                  Arquivar
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function CityUpdatesSection({
+  cityId,
+  updates,
+  categories,
+  companies,
+  events,
+  promotions,
+  jobs,
+  alerts,
+  onSaved,
+}: {
+  cityId: string;
+  updates: CityUpdate[];
+  categories: Category[];
+  companies: Company[];
+  events: EventItem[];
+  promotions: Promotion[];
+  jobs: Job[];
+  alerts: AlertItem[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<CityUpdate | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const relatedOptions = [
+    ...companies.map((item) => ({
+      type: "company",
+      id: item.id,
+      label: `Empresa: ${item.name}`,
+    })),
+    ...events.map((item) => ({
+      type: "event",
+      id: item.id,
+      label: `Evento: ${item.title}`,
+    })),
+    ...promotions.map((item) => ({
+      type: "promotion",
+      id: item.id,
+      label: `Promoção: ${item.title}`,
+    })),
+    ...jobs.map((item) => ({
+      type: "job",
+      id: item.id,
+      label: `Vaga: ${item.title}`,
+    })),
+    ...alerts.map((item) => ({
+      type: "alert",
+      id: item.id,
+      label: `Aviso: ${item.title}`,
+    })),
+  ];
+  const relatedValue =
+    editing?.related_entity_type && editing.related_entity_id
+      ? `${editing.related_entity_type}:${editing.related_entity_id}`
+      : "";
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const title = textValue(form.get("title"));
+      const imageFile = fileValue(form, "image");
+      const imageId = imageFile
+        ? await uploadMedia(imageFile, "city-updates", title)
+        : null;
+      const related = textValue(form.get("related"));
+      const [relatedType, relatedId] = related ? related.split(":") : [];
+      const status = textValue(form.get("status"));
+      const payload = {
+        city_id: cityId,
+        related_entity_type: relatedType || null,
+        related_entity_id: relatedId || null,
+        category_id: textValue(form.get("category_id")) || null,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        summary: textValue(form.get("summary")) || null,
+        body: textValue(form.get("body")) || null,
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+        ...(imageId ? { image_media_id: imageId } : {}),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("city_updates")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("city_updates").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Novidade salva com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveUpdate(id: string) {
+    await supabase
+      .from("city_updates")
+      .update({ status: "archived" })
+      .eq("id", id);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <EditorCard title={editing ? "Editar novidade" : "Nova novidade"}>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Título
+              <Input name="title" required defaultValue={editing?.title || ""} />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Categoria
+              <Select
+                name="category_id"
+                defaultValue={editing?.category_id || ""}
+              >
+                <option value="">Sem categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Relacionar com item do app
+              <Select name="related" defaultValue={relatedValue}>
+                <option value="">Sem relação</option>
+                {relatedOptions.map((option) => (
+                  <option
+                    key={`${option.type}:${option.id}`}
+                    value={`${option.type}:${option.id}`}
+                  >
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <ImagePreviewInput name="image" label="Imagem da novidade" />
+          </FormGrid>
+          <Field>
+            Resumo
+            <Input name="summary" defaultValue={editing?.summary || ""} />
+          </Field>
+          <Field>
+            Texto
+            <TextArea name="body" defaultValue={editing?.body || ""} />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar novidade"
+                  : "Criar novidade"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Novidades cadastradas"
+        empty="Nenhuma novidade cadastrada ainda."
+        headers={["Título", "Status", "Publicado", "Ações"]}
+      >
+        {updates.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.summary}</Muted>
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              {item.published_at
+                ? new Date(item.published_at).toLocaleDateString("pt-BR")
+                : "Ainda não"}
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button $variant="danger" onClick={() => archiveUpdate(item.id)}>
+                  Arquivar
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function PharmaciesSection({
+  cityId,
+  pharmacies,
+  shifts,
+  companies,
+  onSaved,
+}: {
+  cityId: string;
+  pharmacies: Pharmacy[];
+  shifts: PharmacyDutyShift[];
+  companies: Company[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<Pharmacy | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [shiftSaving, setShiftSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const name = textValue(form.get("name"));
+      const logoFile = fileValue(form, "logo");
+      const logoId = logoFile
+        ? await uploadMedia(logoFile, "pharmacies", name)
+        : null;
+      const payload = {
+        city_id: cityId,
+        company_id: textValue(form.get("company_id")) || null,
+        name,
+        slug: textValue(form.get("slug")) || slugify(name),
+        whatsapp: textValue(form.get("whatsapp")) || null,
+        phone: textValue(form.get("phone")) || null,
+        address_line: textValue(form.get("address_line")) || null,
+        neighborhood: textValue(form.get("neighborhood")) || null,
+        latitude: textValue(form.get("latitude"))
+          ? Number(form.get("latitude"))
+          : null,
+        longitude: textValue(form.get("longitude"))
+          ? Number(form.get("longitude"))
+          : null,
+        status: textValue(form.get("status")),
+        manual_priority: Number(form.get("manual_priority") || 100),
+        ...(logoId ? { logo_media_id: logoId } : {}),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("pharmacies")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("pharmacies").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Farmácia salva com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleShiftSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setShiftSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      await assertNoError(
+        await supabase.from("pharmacy_duty_shifts").insert({
+          city_id: cityId,
+          pharmacy_id: textValue(form.get("pharmacy_id")),
+          starts_at: toIsoOrNull(textValue(form.get("starts_at"))),
+          ends_at: toIsoOrNull(textValue(form.get("ends_at"))),
+          note: textValue(form.get("note")) || null,
+          status: textValue(form.get("status")) || "published",
+        }),
+      );
+
+      formElement.reset();
+      setFormSuccess("Plantão salvo com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setShiftSaving(false);
+    }
+  }
+
+  async function archivePharmacy(id: string) {
+    await supabase.from("pharmacies").update({ status: "archived" }).eq("id", id);
+    await onSaved();
+  }
+
+  async function archiveShift(id: string) {
+    await supabase
+      .from("pharmacy_duty_shifts")
+      .update({ status: "archived" })
+      .eq("id", id);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <EditorCard title={editing ? "Editar farmácia" : "Nova farmácia"}>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Nome
+              <Input name="name" required defaultValue={editing?.name || ""} />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Empresa relacionada
+              <Select name="company_id" defaultValue={editing?.company_id || ""}>
+                <option value="">Sem empresa</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              WhatsApp
+              <Input
+                name="whatsapp"
+                placeholder="5588999999999"
+                defaultValue={editing?.whatsapp || ""}
+              />
+            </Field>
+            <Field>
+              Telefone
+              <Input name="phone" defaultValue={editing?.phone || ""} />
+            </Field>
+            <Field>
+              Endereço
+              <Input
+                name="address_line"
+                defaultValue={editing?.address_line || ""}
+              />
+            </Field>
+            <Field>
+              Bairro
+              <Input
+                name="neighborhood"
+                defaultValue={editing?.neighborhood || ""}
+              />
+            </Field>
+            <Field>
+              Latitude
+              <Input
+                name="latitude"
+                type="number"
+                step="0.0000001"
+                defaultValue={editing?.latitude ?? ""}
+              />
+            </Field>
+            <Field>
+              Longitude
+              <Input
+                name="longitude"
+                type="number"
+                step="0.0000001"
+                defaultValue={editing?.longitude ?? ""}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <ImagePreviewInput name="logo" label="Logo da farmácia" />
+          </FormGrid>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar farmácia"
+                  : "Criar farmácia"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <EditorCard title="Novo plantão">
+        <form onSubmit={handleShiftSubmit}>
+          <FormGrid>
+            <Field>
+              Farmácia
+              <Select name="pharmacy_id" required>
+                <option value="">Selecione</option>
+                {pharmacies.map((pharmacy) => (
+                  <option key={pharmacy.id} value={pharmacy.id}>
+                    {pharmacy.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Início do plantão
+              <Input name="starts_at" type="datetime-local" required />
+            </Field>
+            <Field>
+              Fim do plantão
+              <Input name="ends_at" type="datetime-local" required />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue="published">
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FormGrid>
+          <Field>
+            Observação
+            <Input name="note" />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={shiftSaving}>
+              {shiftSaving ? "Salvando..." : "Criar plantão"}
+            </Button>
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Farmácias cadastradas"
+        empty="Nenhuma farmácia cadastrada ainda."
+        headers={["Nome", "Contato", "Status", "Ações"]}
+      >
+        {pharmacies.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.name}</strong>
+              <Muted>{[item.address_line, item.neighborhood].filter(Boolean).join(" - ")}</Muted>
+            </td>
+            <td>{item.whatsapp || item.phone || "-"}</td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => archivePharmacy(item.id)}
+                >
+                  Arquivar
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+
+      <ResourceTable
+        title="Plantões cadastrados"
+        empty="Nenhum plantão cadastrado ainda."
+        headers={["Farmácia", "Período", "Status", "Ações"]}
+      >
+        {shifts.map((item) => (
+          <tr key={item.id}>
+            <td>
+              {pharmacies.find((pharmacy) => pharmacy.id === item.pharmacy_id)
+                ?.name || item.pharmacy_id}
+            </td>
+            <td>
+              {new Date(item.starts_at).toLocaleString("pt-BR")} até{" "}
+              {new Date(item.ends_at).toLocaleString("pt-BR")}
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <Button $variant="danger" onClick={() => archiveShift(item.id)}>
+                Arquivar
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
 function NewsSection({
   cityId,
   news,
@@ -2142,17 +3624,32 @@ function MetricsSection({
   metrics,
   companies,
   events,
+  promotions,
+  jobs,
+  alerts,
+  cityUpdates,
+  pharmacies,
 }: {
   metrics: ClickSummary[];
   companies: Company[];
   events: EventItem[];
+  promotions: Promotion[];
+  jobs: Job[];
+  alerts: AlertItem[];
+  cityUpdates: CityUpdate[];
+  pharmacies: Pharmacy[];
 }) {
   const names = useMemo(() => {
     const map = new Map<string, string>();
     companies.forEach((company) => map.set(company.id, company.name));
     events.forEach((event) => map.set(event.id, event.title));
+    promotions.forEach((promotion) => map.set(promotion.id, promotion.title));
+    jobs.forEach((job) => map.set(job.id, job.title));
+    alerts.forEach((alert) => map.set(alert.id, alert.title));
+    cityUpdates.forEach((update) => map.set(update.id, update.title));
+    pharmacies.forEach((pharmacy) => map.set(pharmacy.id, pharmacy.name));
     return map;
-  }, [companies, events]);
+  }, [alerts, cityUpdates, companies, events, jobs, pharmacies, promotions]);
 
   return (
     <ResourceTable
