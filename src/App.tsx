@@ -1175,7 +1175,9 @@ function EventsSection({
             </Field>
             <Field>
               Fim do evento
-              <Muted>Data e hora em que o evento termina, se você souber.</Muted>
+              <Muted>
+                Data e hora em que o evento termina, se você souber.
+              </Muted>
               <Input
                 name="ends_at"
                 type="datetime-local"
@@ -1832,12 +1834,16 @@ function PlacementsSection({
             </Field>
             <Field>
               Início do destaque
-              <Muted>Quando este item começa a aparecer como destaque no app.</Muted>
+              <Muted>
+                Quando este item começa a aparecer como destaque no app.
+              </Muted>
               <Input name="starts_at" type="datetime-local" />
             </Field>
             <Field>
               Fim do destaque
-              <Muted>Quando este item para de aparecer como destaque no app.</Muted>
+              <Muted>
+                Quando este item para de aparecer como destaque no app.
+              </Muted>
               <Input name="ends_at" type="datetime-local" />
             </Field>
             <Field>
@@ -1954,6 +1960,7 @@ function BannersSection({
         payment_status: textValue(form.get("payment_status")) || "paid",
         notes: textValue(form.get("notes")) || null,
         ...(imageId ? { image_media_id: imageId } : {}),
+        is_active_background_image: form.has("is_active_background_image"),
       };
 
       if (editing) {
@@ -1984,11 +1991,7 @@ function BannersSection({
           <FormGrid>
             <Field>
               Título
-              <Input
-                name="title"
-                required
-                defaultValue={editing?.title || ""}
-              />
+              <Input name="title" defaultValue={editing?.title || ""} />
             </Field>
             <Field>
               Status
@@ -2005,6 +2008,7 @@ function BannersSection({
               <Input
                 name="action_label"
                 defaultValue={editing?.action_label || "55"}
+                required
                 placeholder="5588999999999"
               />
             </Field>
@@ -2062,6 +2066,16 @@ function BannersSection({
               </Select>
             </Field>
             <ImagePreviewInput name="image" label="Imagem do banner" />
+
+            <Field style={{ marginTop: 20 }}>
+              Ativar background na imagem?
+              <Input
+                name="is_active_background_image"
+                type="checkbox"
+                defaultChecked={editing?.is_active_background_image ?? true}
+                style={{ width: 20, height: 20 }}
+              />
+            </Field>
           </FormGrid>
           <Field>
             Subtítulo
@@ -2071,6 +2085,7 @@ function BannersSection({
             Observações internas
             <TextArea name="notes" defaultValue={editing?.notes || ""} />
           </Field>
+
           <Actions>
             <Button type="submit" disabled={saving}>
               {saving

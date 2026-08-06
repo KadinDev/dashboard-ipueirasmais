@@ -103,12 +103,12 @@ export type EventItem = {
 
 export type Banner = {
   id: string;
-  city_id: string;
-  title: string;
-  subtitle: string | null;
+  city_id?: string;
+  title?: string;
+  subtitle?: string | null;
   image_media_id?: string | null;
   action_label: string | null;
-  action_url: string | null;
+  action_url?: string | null;
   status: ContentStatus;
   starts_at: string | null;
   ends_at: string | null;
@@ -116,6 +116,7 @@ export type Banner = {
   paid_amount_cents?: number;
   payment_status?: PaymentStatus;
   notes?: string | null;
+  is_active_background_image: boolean;
 };
 
 export type NewsItem = {

@@ -225,6 +225,7 @@ create table public.banners (
   manual_priority integer not null default 100,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  is_active_background_image boolean not null default true,
   check (ends_at is null or starts_at is null or ends_at > starts_at)
 );
 
