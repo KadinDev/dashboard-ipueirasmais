@@ -15,6 +15,7 @@ import {
   Megaphone,
   Newspaper,
   RefreshCcw,
+  Send,
   Sparkles,
 } from "lucide-react";
 import {
@@ -64,6 +65,7 @@ import type {
   PharmacyDutyShift,
   Placement,
   Plan,
+  PushCampaign,
   Promotion,
 } from "./lib/types";
 
@@ -78,6 +80,7 @@ type Tab =
   | "pharmacies"
   | "news"
   | "notifications"
+  | "push"
   | "placements"
   | "banners"
   | "metrics";
@@ -93,6 +96,7 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "pharmacies", label: "Farmácias", icon: Cross },
   { id: "news", label: "Notícias", icon: Newspaper },
   { id: "notifications", label: "Notificações", icon: Bell },
+  { id: "push", label: "Push", icon: Send },
   { id: "placements", label: "Destaques", icon: Crown },
   { id: "banners", label: "Banners", icon: Megaphone },
   { id: "metrics", label: "Métricas", icon: BarChart3 },
@@ -111,6 +115,29 @@ const placementLabels = {
   super_featured: "Super destaque",
   home_banner: "Banner home",
   event_featured: "Evento destaque",
+};
+
+const paymentStatusLabels = {
+  pending: "Pendente",
+  paid: "Pago",
+  overdue: "Atrasado",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
+};
+
+const pushAudienceLabels = {
+  all: "Todos os usuários da cidade",
+  alerts: "Avisos da Prefeitura",
+  commercial: "Campanha paga/comercial",
+};
+
+const pushStatusLabels = {
+  draft: "Rascunho",
+  pending: "Pendente",
+  sending: "Enviando",
+  sent: "Enviado",
+  failed: "Falhou",
+  cancelled: "Cancelado",
 };
 
 const dayLabels = [
@@ -328,6 +355,7 @@ function AdminDashboard() {
   );
   const [news, setNews] = useState<NewsItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [pushCampaigns, setPushCampaigns] = useState<PushCampaign[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -379,6 +407,10 @@ function AdminDashboard() {
         .from("notifications")
         .select("*")
         .order("published_at", { ascending: false }),
+      supabase
+        .from("push_campaigns")
+        .select("*")
+        .order("created_at", { ascending: false }),
       supabase.from("banners").select("*").order("manual_priority"),
       supabase.from("plans").select("*").order("price_cents"),
       supabase
@@ -410,10 +442,11 @@ function AdminDashboard() {
       setPharmacyShifts((requests[11].data || []) as PharmacyDutyShift[]);
       setNews((requests[12].data || []) as NewsItem[]);
       setNotifications((requests[13].data || []) as NotificationItem[]);
-      setBanners((requests[14].data || []) as Banner[]);
-      setPlans((requests[15].data || []) as Plan[]);
-      setPlacements((requests[16].data || []) as Placement[]);
-      setMetrics((requests[17].data || []) as ClickSummary[]);
+      setPushCampaigns((requests[14].data || []) as PushCampaign[]);
+      setBanners((requests[15].data || []) as Banner[]);
+      setPlans((requests[16].data || []) as Plan[]);
+      setPlacements((requests[17].data || []) as Placement[]);
+      setMetrics((requests[18].data || []) as ClickSummary[]);
     }
 
     setLoading(false);
@@ -594,8 +627,20 @@ function AdminDashboard() {
           <NotificationsSection
             cityId={cityId}
             notifications={notifications}
-            news={news}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "push" && (
+          <PushSection
+            cityId={cityId}
+            pushCampaigns={pushCampaigns}
+            alerts={alerts}
+            companies={companies}
             events={events}
+            promotions={promotions}
+            jobs={jobs}
+            news={news}
             onSaved={loadData}
           />
         )}
@@ -1034,7 +1079,7 @@ function CompaniesSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.latitude ?? ""}
-                placeholder="opcional para mapa"
+                placeholder="Ex: -4.5432100"
               />
             </Field>
             <Field>
@@ -1044,7 +1089,7 @@ function CompaniesSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.longitude ?? ""}
-                placeholder="opcional para mapa"
+                placeholder="Ex: -40.7178900"
               />
             </Field>
             <Field>
@@ -1052,19 +1097,23 @@ function CompaniesSection({
               <Input
                 name="whatsapp"
                 defaultValue={contactValue("whatsapp")}
-                placeholder="5588999999999"
+                placeholder="Ex: 5588999999999"
               />
             </Field>
             <Field>
               Telefone para ligar (opcional)
-              <Input name="phone" defaultValue={contactValue("phone")} />
+              <Input
+                name="phone"
+                defaultValue={contactValue("phone")}
+                placeholder="Ex: 88999999999"
+              />
             </Field>
             <Field>
               Instagram
               <Input
                 name="instagram"
                 defaultValue={contactValue("instagram")}
-                placeholder="https://instagram.com/..."
+                placeholder="Ex: @perfil ou https://instagram.com/perfil"
               />
             </Field>
             <Field>
@@ -1072,7 +1121,7 @@ function CompaniesSection({
               <Input
                 name="maps"
                 defaultValue={contactValue("maps")}
-                placeholder="https://maps.google.com/..."
+                placeholder="Opcional: https://maps.google.com/?q=-4.5432100,-40.7178900"
               />
             </Field>
             <ImagePreviewInput name="logo" label="Logo" />
@@ -1373,7 +1422,7 @@ function EventsSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.latitude ?? ""}
-                placeholder="opcional para mapa"
+                placeholder="Ex: -4.5432100"
               />
             </Field>
             <Field>
@@ -1383,7 +1432,7 @@ function EventsSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.longitude ?? ""}
-                placeholder="opcional para mapa"
+                placeholder="Ex: -40.7178900"
               />
             </Field>
             <Field>
@@ -1396,13 +1445,18 @@ function EventsSection({
             </Field>
             <Field>
               WhatsApp
-              <Input name="whatsapp" defaultValue={editing?.whatsapp || ""} />
+              <Input
+                name="whatsapp"
+                defaultValue={editing?.whatsapp || ""}
+                placeholder="Ex: 5588996960339"
+              />
             </Field>
             <Field>
               Link de ingresso/reserva
               <Input
                 name="ticket_url"
                 defaultValue={editing?.ticket_url || ""}
+                placeholder="Ex: https://site.com/ingressos"
               />
             </Field>
             <Field>
@@ -1565,15 +1619,13 @@ function PromotionsSection({
         title,
         slug: textValue(form.get("slug")) || slugify(title),
         description: textValue(form.get("description")) || null,
-        old_price_cents: textValue(form.get("old_price"))
-          ? Math.round(Number(form.get("old_price")) * 100)
-          : null,
+        old_price_cents: null,
         new_price_cents: textValue(form.get("new_price"))
           ? Math.round(Number(form.get("new_price")) * 100)
           : null,
         price_label: textValue(form.get("price_label")) || null,
         valid_until: toIsoOrNull(textValue(form.get("valid_until"))),
-        whatsapp: textValue(form.get("whatsapp")) || null,
+        whatsapp: null,
         status,
         manual_priority: Number(form.get("manual_priority") || 100),
         published_at: status === "published" ? new Date().toISOString() : null,
@@ -1652,18 +1704,6 @@ function PromotionsSection({
               </Select>
             </Field>
             <Field>
-              Preço antigo
-              <Input
-                name="old_price"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={
-                  editing?.old_price_cents ? editing.old_price_cents / 100 : ""
-                }
-              />
-            </Field>
-            <Field>
               Preço novo
               <Input
                 name="new_price"
@@ -1689,14 +1729,6 @@ function PromotionsSection({
                 name="valid_until"
                 type="datetime-local"
                 defaultValue={dateInputValue(editing?.valid_until)}
-              />
-            </Field>
-            <Field>
-              WhatsApp
-              <Input
-                name="whatsapp"
-                placeholder="5588999999999"
-                defaultValue={editing?.whatsapp || ""}
               />
             </Field>
             <Field>
@@ -1944,7 +1976,7 @@ function JobsSection({
               WhatsApp
               <Input
                 name="whatsapp"
-                placeholder="5588999999999"
+                placeholder="Ex: 5588992777500"
                 defaultValue={editing?.whatsapp || ""}
               />
             </Field>
@@ -1953,6 +1985,7 @@ function JobsSection({
               <Input
                 name="application_url"
                 defaultValue={editing?.application_url || ""}
+                placeholder="Ex: https://site.com/candidatura"
               />
             </Field>
             <Field>
@@ -2221,7 +2254,7 @@ function AlertsSection({
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
-              <Muted>{item.summary}</Muted>
+              <Muted>{item.body}</Muted>
             </td>
             <td>{item.importance}</td>
             <td>
@@ -2331,7 +2364,7 @@ function CityUpdatesSection({
         category_id: textValue(form.get("category_id")) || null,
         title,
         slug: textValue(form.get("slug")) || slugify(title),
-        summary: textValue(form.get("summary")) || null,
+        summary: null,
         body: textValue(form.get("body")) || null,
         status,
         manual_priority: Number(form.get("manual_priority") || 100),
@@ -2436,10 +2469,6 @@ function CityUpdatesSection({
             </Field>
             <ImagePreviewInput name="image" label="Imagem da novidade" />
           </FormGrid>
-          <Field>
-            Resumo
-            <Input name="summary" defaultValue={editing?.summary || ""} />
-          </Field>
           <Field>
             Texto
             <TextArea name="body" defaultValue={editing?.body || ""} />
@@ -2654,13 +2683,17 @@ function PharmaciesSection({
               WhatsApp
               <Input
                 name="whatsapp"
-                placeholder="5588999999999"
+                placeholder="Ex: 5588999999999"
                 defaultValue={editing?.whatsapp || ""}
               />
             </Field>
             <Field>
               Telefone
-              <Input name="phone" defaultValue={editing?.phone || ""} />
+              <Input
+                name="phone"
+                defaultValue={editing?.phone || ""}
+                placeholder="Ex: 88999999999"
+              />
             </Field>
             <Field>
               Endereço
@@ -2683,6 +2716,7 @@ function PharmaciesSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.latitude ?? ""}
+                placeholder="Ex: -4.5432100"
               />
             </Field>
             <Field>
@@ -2692,6 +2726,7 @@ function PharmaciesSection({
                 type="number"
                 step="0.0000001"
                 defaultValue={editing?.longitude ?? ""}
+                placeholder="Ex: -40.7178900"
               />
             </Field>
             <Field>
@@ -3033,37 +3068,40 @@ function NewsSection({
 function NotificationsSection({
   cityId,
   notifications,
-  news,
-  events,
   onSaved,
 }: {
   cityId: string;
   notifications: NotificationItem[];
-  news: NewsItem[];
-  events: EventItem[];
   onSaved: () => Promise<void>;
 }) {
+  const [saving, setSaving] = useState(false);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const entityType = textValue(form.get("entity_type")) || null;
-    const payload = {
-      city_id: cityId,
-      title: textValue(form.get("title")),
-      body: textValue(form.get("body")) || null,
-      entity_type: entityType,
-      entity_id: textValue(form.get("entity_id")) || null,
-      status: textValue(form.get("status")),
-      published_at:
-        textValue(form.get("status")) === "published"
-          ? new Date().toISOString()
-          : null,
-    };
+    const status = textValue(form.get("status"));
+    const title = textValue(form.get("title"));
+    const body = textValue(form.get("body")) || null;
 
-    await supabase.from("notifications").insert(payload);
-    formElement.reset();
-    await onSaved();
+    setSaving(true);
+    try {
+      await assertNoError(
+        await supabase.from("notifications").insert({
+          city_id: cityId,
+          title,
+          body,
+          entity_type: null,
+          entity_id: null,
+          status,
+          published_at: status === "published" ? new Date().toISOString() : null,
+        }),
+      );
+      formElement.reset();
+      await onSaved();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function archiveNotification(id: string) {
@@ -3077,11 +3115,20 @@ function NotificationsSection({
   return (
     <>
       <EditorCard title="Nova notificação interna">
+        <Muted>
+          Use esta tela para recados dentro do app, como manutenção, novidades
+          do próprio Ipueiras+ ou algum problema sendo resolvido. Isso aparece
+          no sino da Home, mas não dispara notificação no celular.
+        </Muted>
         <form onSubmit={handleSubmit}>
           <FormGrid>
             <Field>
               Título
-              <Input name="title" required />
+              <Input
+                name="title"
+                required
+                placeholder="Ex: Manutenção programada no app"
+              />
             </Field>
             <Field>
               Status
@@ -3093,43 +3140,24 @@ function NotificationsSection({
                 ))}
               </Select>
             </Field>
-            <Field>
-              Tipo de destino
-              <Select name="entity_type" defaultValue="">
-                <option value="">Sem destino</option>
-                <option value="event">Evento</option>
-                <option value="news">Notícia</option>
-              </Select>
-            </Field>
-            <Field>
-              Destino
-              <Select name="entity_id" defaultValue="">
-                <option value="">Nenhum</option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    Evento: {event.title}
-                  </option>
-                ))}
-                {news.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    Notícia: {item.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
           </FormGrid>
           <Field>
             Texto
-            <TextArea name="body" />
+            <TextArea
+              name="body"
+              placeholder="Ex: Estamos ajustando algumas informações do app. Tudo volta ao normal em breve."
+            />
           </Field>
           <Actions>
-            <Button type="submit">Criar notificação</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Criar notificação"}
+            </Button>
           </Actions>
         </form>
       </EditorCard>
 
       <ResourceTable
-        title="Notificações"
+        title="Notificações internas"
         empty="Nenhuma notificação cadastrada ainda."
         headers={["Título", "Status", "Publicado", "Ações"]}
       >
@@ -3164,6 +3192,318 @@ function NotificationsSection({
   );
 }
 
+function PushSection({
+  cityId,
+  pushCampaigns,
+  alerts,
+  companies,
+  events,
+  promotions,
+  jobs,
+  news,
+  onSaved,
+}: {
+  cityId: string;
+  pushCampaigns: PushCampaign[];
+  alerts: AlertItem[];
+  companies: Company[];
+  events: EventItem[];
+  promotions: Promotion[];
+  jobs: Job[];
+  news: NewsItem[];
+  onSaved: () => Promise<void>;
+}) {
+  const [selectedAlertId, setSelectedAlertId] = useState(alerts[0]?.id || "");
+  const [entityType, setEntityType] = useState<
+    "company" | "event" | "promotion" | "job" | "news" | ""
+  >("");
+  const [savingAlertPush, setSavingAlertPush] = useState(false);
+  const [savingCustomPush, setSavingCustomPush] = useState(false);
+
+  useEffect(() => {
+    if (!selectedAlertId && alerts[0]?.id) {
+      setSelectedAlertId(alerts[0].id);
+    }
+  }, [alerts, selectedAlertId]);
+
+  const selectedAlert = alerts.find((alert) => alert.id === selectedAlertId);
+  const commercialItems = useMemo(() => {
+    if (entityType === "company") {
+      return companies.map((item) => ({ id: item.id, label: item.name }));
+    }
+
+    if (entityType === "event") {
+      return events.map((item) => ({ id: item.id, label: item.title }));
+    }
+
+    if (entityType === "promotion") {
+      return promotions.map((item) => ({ id: item.id, label: item.title }));
+    }
+
+    if (entityType === "job") {
+      return jobs.map((item) => ({ id: item.id, label: item.title }));
+    }
+
+    if (entityType === "news") {
+      return news.map((item) => ({ id: item.id, label: item.title }));
+    }
+
+    return [];
+  }, [companies, entityType, events, jobs, news, promotions]);
+
+  async function handleAlertPush(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAlert) return;
+
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+
+    setSavingAlertPush(true);
+    try {
+      await assertNoError(
+        await supabase.from("push_campaigns").insert({
+          city_id: cityId,
+          notification_id: null,
+          title: selectedAlert.title,
+          body:
+            selectedAlert.summary ||
+            selectedAlert.body ||
+            "Novo aviso da Prefeitura no Ipueiras+.",
+          entity_type: "alert",
+          entity_id: selectedAlert.id,
+          audience: "alerts",
+          send_status: "pending",
+          scheduled_at: toIsoOrNull(textValue(form.get("scheduled_at"))),
+          paid_amount_cents: 0,
+          payment_status: "paid",
+          billing_notes: textValue(form.get("billing_notes")) || null,
+        }),
+      );
+      formElement.reset();
+      await onSaved();
+    } finally {
+      setSavingAlertPush(false);
+    }
+  }
+
+  async function handleCustomPush(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const paidAmount = Number(form.get("paid_amount") || 0);
+    const selectedType = textValue(form.get("entity_type")) || null;
+
+    setSavingCustomPush(true);
+    try {
+      await assertNoError(
+        await supabase.from("push_campaigns").insert({
+          city_id: cityId,
+          notification_id: null,
+          title: textValue(form.get("title")),
+          body: textValue(form.get("body")),
+          entity_type: selectedType,
+          entity_id: textValue(form.get("entity_id")) || null,
+          audience: "commercial",
+          send_status: "pending",
+          scheduled_at: toIsoOrNull(textValue(form.get("scheduled_at"))),
+          paid_amount_cents: Math.round(paidAmount * 100),
+          payment_status: textValue(form.get("payment_status")) || "paid",
+          billing_notes: textValue(form.get("billing_notes")) || null,
+        }),
+      );
+      formElement.reset();
+      setEntityType("");
+      await onSaved();
+    } finally {
+      setSavingCustomPush(false);
+    }
+  }
+
+  return (
+    <>
+      <EditorCard title="Push de aviso da Prefeitura">
+        <Muted>
+          Escolha um aviso já cadastrado na tela Avisos. Ele será preparado
+          para aparecer como notificação no dispositivo dos usuários.
+        </Muted>
+        <form onSubmit={handleAlertPush}>
+          <FormGrid>
+            <Field>
+              Aviso da Prefeitura
+              <Select
+                value={selectedAlertId}
+                onChange={(event) => setSelectedAlertId(event.target.value)}
+                required
+              >
+                <option value="">Selecione um aviso</option>
+                {alerts.map((alert) => (
+                  <option key={alert.id} value={alert.id}>
+                    {alert.title}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Agendar para
+              <Muted>Deixe vazio para enviar assim que a função rodar.</Muted>
+              <Input name="scheduled_at" type="datetime-local" />
+            </Field>
+          </FormGrid>
+          {selectedAlert ? (
+            <CardPreview>
+              <strong>{selectedAlert.title}</strong>
+              <Muted>
+                {selectedAlert.summary ||
+                  selectedAlert.body ||
+                  "Sem resumo informado."}
+              </Muted>
+            </CardPreview>
+          ) : null}
+          <Field>
+            Observações internas
+            <TextArea
+              name="billing_notes"
+              placeholder="Ex: Aviso urgente da Prefeitura sobre falta de água."
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={savingAlertPush || !selectedAlert}>
+              {savingAlertPush ? "Preparando..." : "Preparar push do aviso"}
+            </Button>
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <EditorCard title="Push comercial ou outro assunto">
+        <Muted>
+          Use para campanhas pagas de empresas, eventos, promoções, vagas ou
+          algum recado manual. Evite excesso para os usuários não desativarem
+          as notificações do app.
+        </Muted>
+        <form onSubmit={handleCustomPush}>
+          <FormGrid>
+            <Field>
+              Título do push
+              <Input
+                name="title"
+                required
+                placeholder="Ex: Promoção especial hoje"
+              />
+            </Field>
+            <Field>
+              Tipo de destino
+              <Select
+                name="entity_type"
+                value={entityType}
+                onChange={(event) =>
+                  setEntityType(event.target.value as typeof entityType)
+                }
+              >
+                <option value="">Sem destino</option>
+                <option value="company">Empresa</option>
+                <option value="event">Evento</option>
+                <option value="promotion">Promoção</option>
+                <option value="job">Vaga</option>
+                <option value="news">Notícia</option>
+              </Select>
+            </Field>
+            <Field>
+              Item relacionado
+              <Select name="entity_id" defaultValue="" disabled={!entityType}>
+                <option value="">Nenhum</option>
+                {commercialItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Agendar para
+              <Muted>Deixe vazio para enviar assim que a função rodar.</Muted>
+              <Input name="scheduled_at" type="datetime-local" />
+            </Field>
+            <Field>
+              Valor cobrado
+              <Input
+                name="paid_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue="0"
+                placeholder="Ex: 30.00"
+              />
+            </Field>
+            <Field>
+              Pagamento
+              <Select name="payment_status" defaultValue="paid">
+                <option value="pending">Pendente</option>
+                <option value="paid">Pago</option>
+                <option value="overdue">Atrasado</option>
+                <option value="cancelled">Cancelado</option>
+                <option value="refunded">Reembolsado</option>
+              </Select>
+            </Field>
+          </FormGrid>
+          <Field>
+            Texto do push
+            <TextArea
+              name="body"
+              required
+              placeholder="Ex: Oferta válida somente hoje. Confira no Ipueiras+."
+            />
+          </Field>
+          <Field>
+            Observações de cobrança
+            <TextArea
+              name="billing_notes"
+              placeholder="Ex: Push pago por Farmácia Central para campanha de sábado."
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={savingCustomPush}>
+              {savingCustomPush ? "Preparando..." : "Preparar push"}
+            </Button>
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Push no dispositivo"
+        empty="Nenhuma campanha push preparada ainda."
+        headers={["Título", "Público", "Status", "Cobrança", "Envio"]}
+      >
+        {pushCampaigns.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.body}</Muted>
+            </td>
+            <td>{pushAudienceLabels[item.audience] || item.audience}</td>
+            <td>{pushStatusLabels[item.send_status] || item.send_status}</td>
+            <td>
+              {centsToBRL(item.paid_amount_cents)}
+              <Muted>
+                {paymentStatusLabels[item.payment_status] ||
+                  item.payment_status}
+              </Muted>
+            </td>
+            <td>
+              {item.sent_at
+                ? new Date(item.sent_at).toLocaleString("pt-BR")
+                : item.scheduled_at
+                  ? `Agendado: ${new Date(item.scheduled_at).toLocaleString("pt-BR")}`
+                  : "Pendente"}
+              <Muted>
+                Sucesso: {item.success_count} | Falha: {item.failure_count}
+              </Muted>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
 function PlacementsSection({
   cityId,
   placements,
@@ -3491,7 +3831,7 @@ function BannersSection({
                 name="action_label"
                 defaultValue={editing?.action_label || "55"}
                 required
-                placeholder="5588999999999"
+                placeholder="Ex: 5588999999999"
               />
             </Field>
             <Input
@@ -3774,6 +4114,16 @@ const CheckLabel = styled.label`
   color: #d9d0e7;
 `;
 
+const CardPreview = styled.div`
+  border: 1px solid rgba(255, 122, 0, 0.28);
+  background: rgba(255, 122, 0, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  display: grid;
+  gap: 6px;
+`;
+
 const SuccessBox = styled.div`
   border: 1px solid #22c55e;
   background: rgba(22, 101, 52, 0.28);
@@ -3819,3 +4169,4 @@ const ImagePreviewCard = styled.div`
     font-size: 12px;
   }
 `;
+

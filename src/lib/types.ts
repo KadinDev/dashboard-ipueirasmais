@@ -195,6 +195,27 @@ export type NotificationItem = {
   published_at: string | null;
 };
 
+export type PushCampaign = {
+  id: string;
+  city_id: string;
+  notification_id: string | null;
+  title: string;
+  body: string;
+  entity_type: EntityKind | null;
+  entity_id: string | null;
+  audience: "all" | "alerts" | "commercial";
+  send_status: "draft" | "pending" | "sending" | "sent" | "failed" | "cancelled";
+  scheduled_at: string | null;
+  sent_at: string | null;
+  target_count: number;
+  success_count: number;
+  failure_count: number;
+  paid_amount_cents: number;
+  payment_status: PaymentStatus;
+  billing_notes: string | null;
+  created_at: string;
+};
+
 export type Promotion = {
   id: string;
   city_id: string;
