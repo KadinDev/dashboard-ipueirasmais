@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+﻿import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
   BarChart3,
@@ -161,6 +161,103 @@ function textValue(value: FormDataEntryValue | null) {
   return String(value || "").trim();
 }
 
+const TABLE_PAGE_SIZE = 20;
+
+type DatedRow = {
+  created_at?: string | null;
+  published_at?: string | null;
+  starts_at?: string | null;
+};
+
+function normalizedText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function recentTime(item: DatedRow) {
+  const rawDate = item.created_at || item.published_at || item.starts_at || "";
+  const time = rawDate ? new Date(rawDate).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function usePaginatedSearch<T extends DatedRow>(
+  items: T[],
+  getSearchText: (item: T) => string,
+) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const normalizedSearch = normalizedText(search.trim());
+
+  const filteredItems = useMemo(() => {
+    return [...items]
+      .sort((a, b) => recentTime(b) - recentTime(a))
+      .filter((item) => {
+        if (!normalizedSearch) return true;
+        return normalizedText(getSearchText(item)).includes(normalizedSearch);
+      });
+  }, [getSearchText, items, normalizedSearch]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredItems.length / TABLE_PAGE_SIZE),
+  );
+  const safePage = Math.min(page, totalPages);
+  const visibleItems = filteredItems.slice(
+    (safePage - 1) * TABLE_PAGE_SIZE,
+    safePage * TABLE_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [normalizedSearch]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  return {
+    search,
+    setSearch,
+    page: safePage,
+    setPage,
+    visibleItems,
+    totalItems: filteredItems.length,
+    totalPages,
+  };
+}
+
+function usePaginatedItems<T extends DatedRow>(items: T[]) {
+  const [page, setPage] = useState(1);
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => recentTime(b) - recentTime(a));
+  }, [items]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedItems.length / TABLE_PAGE_SIZE),
+  );
+  const safePage = Math.min(page, totalPages);
+  const visibleItems = sortedItems.slice(
+    (safePage - 1) * TABLE_PAGE_SIZE,
+    safePage * TABLE_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  return {
+    page: safePage,
+    setPage,
+    visibleItems,
+    totalItems: sortedItems.length,
+    totalPages,
+  };
+}
+
 function messageFromError(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Não foi possível salvar. Verifique os campos e tente novamente.";
@@ -169,6 +266,19 @@ function messageFromError(error: unknown) {
 async function assertNoError<T extends { error: unknown }>(result: T) {
   if (result.error) throw result.error;
   return result;
+}
+
+async function deleteRows(
+  table: string,
+  id: string,
+  onSaved: () => Promise<void>,
+) {
+  if (!window.confirm("Tem certeza que deseja excluir definitivamente?")) {
+    return;
+  }
+
+  await assertNoError(await supabase.from(table).delete().eq("id", id));
+  await onSaved();
 }
 
 function fileValue(form: FormData, name: string) {
@@ -780,6 +890,16 @@ function CompaniesSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const companyList = usePaginatedSearch(companies, (company) =>
+    [
+      company.name,
+      company.neighborhood,
+      company.description,
+      company.address_line,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
   const editingContacts = contacts.filter(
     (contact) => contact.company_id === editing?.id,
   );
@@ -950,6 +1070,25 @@ function CompaniesSection({
       .from("companies")
       .update({ status: "archived" })
       .eq("id", id);
+    await onSaved();
+  }
+
+  async function deleteCompany(id: string) {
+    if (!window.confirm("Tem certeza que deseja excluir esta empresa?")) return;
+    await assertNoError(
+      await supabase.from("company_contacts").delete().eq("company_id", id),
+    );
+    await assertNoError(
+      await supabase.from("company_hours").delete().eq("company_id", id),
+    );
+    await assertNoError(
+      await supabase
+        .from("placements")
+        .delete()
+        .eq("entity_type", "company")
+        .eq("entity_id", id),
+    );
+    await assertNoError(await supabase.from("companies").delete().eq("id", id));
     await onSaved();
   }
 
@@ -1200,8 +1339,19 @@ function CompaniesSection({
         title="Empresas cadastradas"
         empty="Nenhuma empresa cadastrada ainda."
         headers={["Nome", "Status", "Nota", "Prioridade", "Ações"]}
+        controls={
+          <TableControls
+            search={companyList.search}
+            onSearch={companyList.setSearch}
+            placeholder="Pesquisar empresa por nome, bairro, endereço..."
+            page={companyList.page}
+            totalPages={companyList.totalPages}
+            totalItems={companyList.totalItems}
+            onPage={companyList.setPage}
+          />
+        }
       >
-        {companies.map((company) => (
+        {companyList.visibleItems.map((company) => (
           <tr key={company.id}>
             <td>
               <strong>{company.name}</strong>
@@ -1229,6 +1379,12 @@ function CompaniesSection({
                 >
                   Arquivar
                 </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteCompany(company.id)}
+                >
+                  Excluir
+                </Button>
               </InlineActions>
             </td>
           </tr>
@@ -1253,6 +1409,17 @@ function EventsSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const eventList = usePaginatedSearch(events, (event) =>
+    [
+      event.title,
+      event.description,
+      event.venue_name,
+      event.address_line,
+      event.neighborhood,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1323,6 +1490,19 @@ function EventsSection({
 
   async function archiveEvent(id: string) {
     await supabase.from("events").update({ status: "archived" }).eq("id", id);
+    await onSaved();
+  }
+
+  async function deleteEvent(id: string) {
+    if (!window.confirm("Tem certeza que deseja excluir este evento?")) return;
+    await assertNoError(
+      await supabase
+        .from("placements")
+        .delete()
+        .eq("entity_type", "event")
+        .eq("entity_id", id),
+    );
+    await assertNoError(await supabase.from("events").delete().eq("id", id));
     await onSaved();
   }
 
@@ -1547,8 +1727,19 @@ function EventsSection({
         title="Eventos cadastrados"
         empty="Nenhum evento cadastrado ainda."
         headers={["Evento", "Data", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={eventList.search}
+            onSearch={eventList.setSearch}
+            placeholder="Pesquisar evento por título, local, endereço..."
+            page={eventList.page}
+            totalPages={eventList.totalPages}
+            totalItems={eventList.totalItems}
+            onPage={eventList.setPage}
+          />
+        }
       >
-        {events.map((event) => (
+        {eventList.visibleItems.map((event) => (
           <tr key={event.id}>
             <td>
               <strong>{event.title}</strong>
@@ -1570,6 +1761,12 @@ function EventsSection({
                   onClick={() => archiveEvent(event.id)}
                 >
                   Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteEvent(event.id)}
+                >
+                  Excluir
                 </Button>
               </InlineActions>
             </td>
@@ -1597,6 +1794,16 @@ function PromotionsSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const promotionList = usePaginatedSearch(promotions, (promotion) =>
+    [
+      promotion.title,
+      promotion.description,
+      promotion.price_label,
+      companies.find((company) => company.id === promotion.company_id)?.name,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1657,6 +1864,10 @@ function PromotionsSection({
   async function archivePromotion(id: string) {
     await supabase.from("promotions").update({ status: "archived" }).eq("id", id);
     await onSaved();
+  }
+
+  async function deletePromotion(id: string) {
+    await deleteRows("promotions", id, onSaved);
   }
 
   return (
@@ -1784,8 +1995,19 @@ function PromotionsSection({
         title="Promoções cadastradas"
         empty="Nenhuma promoção cadastrada ainda."
         headers={["Título", "Empresa", "Status", "Validade", "Ações"]}
+        controls={
+          <TableControls
+            search={promotionList.search}
+            onSearch={promotionList.setSearch}
+            placeholder="Pesquisar promoção por título, empresa, preço..."
+            page={promotionList.page}
+            totalPages={promotionList.totalPages}
+            totalItems={promotionList.totalItems}
+            onPage={promotionList.setPage}
+          />
+        }
       >
-        {promotions.map((item) => (
+        {promotionList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -1816,6 +2038,12 @@ function PromotionsSection({
                 >
                   Arquivar
                 </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deletePromotion(item.id)}
+                >
+                  Excluir
+                </Button>
               </InlineActions>
             </td>
           </tr>
@@ -1842,6 +2070,7 @@ function JobsSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const jobList = usePaginatedItems(jobs);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1894,6 +2123,10 @@ function JobsSection({
   async function archiveJob(id: string) {
     await supabase.from("jobs").update({ status: "archived" }).eq("id", id);
     await onSaved();
+  }
+
+  async function deleteJob(id: string) {
+    await deleteRows("jobs", id, onSaved);
   }
 
   return (
@@ -2047,8 +2280,16 @@ function JobsSection({
         title="Vagas cadastradas"
         empty="Nenhuma vaga cadastrada ainda."
         headers={["Cargo", "Empresa", "Status", "Publicado", "Ações"]}
+        controls={
+          <PaginationControls
+            page={jobList.page}
+            totalPages={jobList.totalPages}
+            totalItems={jobList.totalItems}
+            onPage={jobList.setPage}
+          />
+        }
       >
-        {jobs.map((item) => (
+        {jobList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -2078,6 +2319,12 @@ function JobsSection({
                 <Button $variant="danger" onClick={() => archiveJob(item.id)}>
                   Arquivar
                 </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteJob(item.id)}
+                >
+                  Excluir
+                </Button>
               </InlineActions>
             </td>
           </tr>
@@ -2100,6 +2347,17 @@ function AlertsSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const alertList = usePaginatedSearch(alerts, (alert) =>
+    [
+      alert.title,
+      alert.summary,
+      alert.body,
+      alert.importance,
+      alert.affected_areas,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2148,6 +2406,10 @@ function AlertsSection({
   async function archiveAlert(id: string) {
     await supabase.from("alerts").update({ status: "archived" }).eq("id", id);
     await onSaved();
+  }
+
+  async function deleteAlert(id: string) {
+    await deleteRows("alerts", id, onSaved);
   }
 
   return (
@@ -2249,8 +2511,19 @@ function AlertsSection({
         title="Avisos cadastrados"
         empty="Nenhum aviso cadastrado ainda."
         headers={["Título", "Importância", "Status", "Publicado", "Ações"]}
+        controls={
+          <TableControls
+            search={alertList.search}
+            onSearch={alertList.setSearch}
+            placeholder="Pesquisar aviso por título, texto, área afetada..."
+            page={alertList.page}
+            totalPages={alertList.totalPages}
+            totalItems={alertList.totalItems}
+            onPage={alertList.setPage}
+          />
+        }
       >
-        {alerts.map((item) => (
+        {alertList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -2274,6 +2547,9 @@ function AlertsSection({
                 </Button>
                 <Button $variant="danger" onClick={() => archiveAlert(item.id)}>
                   Arquivar
+                </Button>
+                <Button $variant="danger" onClick={() => deleteAlert(item.id)}>
+                  Excluir
                 </Button>
               </InlineActions>
             </td>
@@ -2309,6 +2585,7 @@ function CityUpdatesSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const updateList = usePaginatedItems(updates);
   const relatedOptions = [
     ...companies.map((item) => ({
       type: "company",
@@ -2400,6 +2677,10 @@ function CityUpdatesSection({
       .update({ status: "archived" })
       .eq("id", id);
     await onSaved();
+  }
+
+  async function deleteUpdate(id: string) {
+    await deleteRows("city_updates", id, onSaved);
   }
 
   return (
@@ -2499,8 +2780,16 @@ function CityUpdatesSection({
         title="Novidades cadastradas"
         empty="Nenhuma novidade cadastrada ainda."
         headers={["Título", "Status", "Publicado", "Ações"]}
+        controls={
+          <PaginationControls
+            page={updateList.page}
+            totalPages={updateList.totalPages}
+            totalItems={updateList.totalItems}
+            onPage={updateList.setPage}
+          />
+        }
       >
-        {updates.map((item) => (
+        {updateList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -2523,6 +2812,12 @@ function CityUpdatesSection({
                 </Button>
                 <Button $variant="danger" onClick={() => archiveUpdate(item.id)}>
                   Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteUpdate(item.id)}
+                >
+                  Excluir
                 </Button>
               </InlineActions>
             </td>
@@ -2897,6 +3192,7 @@ function NewsSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const newsList = usePaginatedItems(news);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2946,6 +3242,10 @@ function NewsSection({
   async function archiveNews(id: string) {
     await supabase.from("news").update({ status: "archived" }).eq("id", id);
     await onSaved();
+  }
+
+  async function deleteNews(id: string) {
+    await deleteRows("news", id, onSaved);
   }
 
   return (
@@ -3031,8 +3331,16 @@ function NewsSection({
         title="Notícias cadastradas"
         empty="Nenhuma notícia cadastrada ainda."
         headers={["Título", "Status", "Publicado", "Ações"]}
+        controls={
+          <PaginationControls
+            page={newsList.page}
+            totalPages={newsList.totalPages}
+            totalItems={newsList.totalItems}
+            onPage={newsList.setPage}
+          />
+        }
       >
-        {news.map((item) => (
+        {newsList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -3056,6 +3364,12 @@ function NewsSection({
                 <Button $variant="danger" onClick={() => archiveNews(item.id)}>
                   Arquivar
                 </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteNews(item.id)}
+                >
+                  Excluir
+                </Button>
               </InlineActions>
             </td>
           </tr>
@@ -3075,6 +3389,7 @@ function NotificationsSection({
   onSaved: () => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
+  const notificationList = usePaginatedItems(notifications);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3110,6 +3425,10 @@ function NotificationsSection({
       .update({ status: "archived" })
       .eq("id", id);
     await onSaved();
+  }
+
+  async function deleteNotification(id: string) {
+    await deleteRows("notifications", id, onSaved);
   }
 
   return (
@@ -3160,8 +3479,16 @@ function NotificationsSection({
         title="Notificações internas"
         empty="Nenhuma notificação cadastrada ainda."
         headers={["Título", "Status", "Publicado", "Ações"]}
+        controls={
+          <PaginationControls
+            page={notificationList.page}
+            totalPages={notificationList.totalPages}
+            totalItems={notificationList.totalItems}
+            onPage={notificationList.setPage}
+          />
+        }
       >
-        {notifications.map((item) => (
+        {notificationList.visibleItems.map((item) => (
           <tr key={item.id}>
             <td>
               <strong>{item.title}</strong>
@@ -3178,12 +3505,20 @@ function NotificationsSection({
                 : "Ainda não"}
             </td>
             <td>
-              <Button
-                $variant="danger"
-                onClick={() => archiveNotification(item.id)}
-              >
-                Arquivar
-              </Button>
+              <InlineActions>
+                <Button
+                  $variant="danger"
+                  onClick={() => archiveNotification(item.id)}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteNotification(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
             </td>
           </tr>
         ))}
@@ -3318,6 +3653,7 @@ function PushSection({
       setSavingCustomPush(false);
     }
   }
+
 
   return (
     <>
@@ -3528,6 +3864,17 @@ function PlacementsSection({
     entityType === "company"
       ? [["featured", "Empresa destaque"]]
       : [["event_featured", "Evento destaque"]];
+  const placementList = usePaginatedSearch(placements, (placement) =>
+    [
+      entityName(placement),
+      placement.entity_type,
+      placement.placement_type,
+      placement.notes,
+      placement.payment_status,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3575,6 +3922,10 @@ function PlacementsSection({
   async function pausePlacement(id: string) {
     await supabase.from("placements").update({ is_active: false }).eq("id", id);
     await onSaved();
+  }
+
+  async function deletePlacement(id: string) {
+    await deleteRows("placements", id, onSaved);
   }
 
   function entityName(placement: Placement) {
@@ -3708,8 +4059,19 @@ function PlacementsSection({
         title="Destaques ativos e históricos"
         empty="Nenhum destaque cadastrado ainda."
         headers={["Item", "Tipo", "Fim", "Valor", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={placementList.search}
+            onSearch={placementList.setSearch}
+            placeholder="Pesquisar destaque por item, tipo, observação..."
+            page={placementList.page}
+            totalPages={placementList.totalPages}
+            totalItems={placementList.totalItems}
+            onPage={placementList.setPage}
+          />
+        }
       >
-        {placements.map((placement) => (
+        {placementList.visibleItems.map((placement) => (
           <tr key={placement.id}>
             <td>{entityName(placement)}</td>
             <td>{placementLabels[placement.placement_type]}</td>
@@ -3731,6 +4093,12 @@ function PlacementsSection({
               >
                 Pausar
               </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deletePlacement(placement.id)}
+                >
+                  Excluir
+                </Button>
             </td>
           </tr>
         ))}
@@ -3752,6 +4120,7 @@ function BannersSection({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const bannerList = usePaginatedItems(banners);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3802,6 +4171,10 @@ function BannersSection({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function deleteBanner(id: string) {
+    await deleteRows("banners", id, onSaved);
   }
 
   return (
@@ -3933,8 +4306,16 @@ function BannersSection({
         title="Banners cadastrados"
         empty="Nenhum banner cadastrado ainda."
         headers={["Título", "Status", "Período", "Prioridade", "Ações"]}
+        controls={
+          <PaginationControls
+            page={bannerList.page}
+            totalPages={bannerList.totalPages}
+            totalItems={bannerList.totalItems}
+            onPage={bannerList.setPage}
+          />
+        }
       >
-        {banners.map((banner) => (
+        {bannerList.visibleItems.map((banner) => (
           <tr key={banner.id}>
             <td>{banner.title}</td>
             <td>
@@ -3949,9 +4330,17 @@ function BannersSection({
             </td>
             <td>{banner.manual_priority}</td>
             <td>
-              <Button $variant="ghost" onClick={() => setEditing(banner)}>
-                Editar
-              </Button>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(banner)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteBanner(banner.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
             </td>
           </tr>
         ))}
@@ -4029,11 +4418,13 @@ function ResourceTable({
   title,
   empty,
   headers,
+  controls,
   children,
 }: {
   title: string;
   empty: string;
   headers: string[];
+  controls?: ReactNode;
   children: ReactNode;
 }) {
   const rows = Array.isArray(children)
@@ -4047,6 +4438,7 @@ function ResourceTable({
       <Toolbar>
         <CardTitle>{title}</CardTitle>
       </Toolbar>
+      {controls}
       {rows.length === 0 ? (
         <Empty>{empty}</Empty>
       ) : (
@@ -4064,6 +4456,77 @@ function ResourceTable({
         </TableWrap>
       )}
     </Card>
+  );
+}
+
+function TableControls({
+  search,
+  onSearch,
+  placeholder,
+  page,
+  totalPages,
+  totalItems,
+  onPage,
+}: {
+  search: string;
+  onSearch: (value: string) => void;
+  placeholder: string;
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <TableControlsWrap>
+      <Input
+        value={search}
+        onChange={(event) => onSearch(event.target.value)}
+        placeholder={placeholder}
+      />
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPage={onPage}
+      />
+    </TableControlsWrap>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  totalItems,
+  onPage,
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <Pagination>
+      <Muted>
+        {totalItems} item{totalItems === 1 ? "" : "s"} | página {page} de{" "}
+        {totalPages}
+      </Muted>
+      <Button
+        type="button"
+        $variant="ghost"
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+      >
+        Anterior
+      </Button>
+      <Button
+        type="button"
+        $variant="ghost"
+        disabled={page >= totalPages}
+        onClick={() => onPage(page + 1)}
+      >
+        Próxima
+      </Button>
+    </Pagination>
   );
 }
 
@@ -4102,6 +4565,23 @@ const Actions = styled.div`
 
 const InlineActions = styled.div`
   display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const TableControlsWrap = styled.div`
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  ${Input} {
+    max-width: 420px;
+  }
+`;
+
+const Pagination = styled.div`
+  display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 `;
@@ -4169,4 +4649,6 @@ const ImagePreviewCard = styled.div`
     font-size: 12px;
   }
 `;
+
+
 

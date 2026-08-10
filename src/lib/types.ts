@@ -68,6 +68,7 @@ export type Company = {
   listing_payment_status?: PaymentStatus;
   listing_paid_until?: string | null;
   billing_notes?: string | null;
+  created_at?: string | null;
 };
 
 export type CompanyContact = {
@@ -116,6 +117,7 @@ export type EventItem = {
   paid_amount_cents?: number;
   payment_status?: PaymentStatus;
   billing_notes?: string | null;
+  created_at?: string | null;
 };
 
 export type Banner = {
@@ -134,6 +136,7 @@ export type Banner = {
   payment_status?: PaymentStatus;
   notes?: string | null;
   is_active_background_image: boolean;
+  created_at?: string | null;
 };
 
 export type NewsItem = {
@@ -147,6 +150,7 @@ export type NewsItem = {
   cover_media_id?: string | null;
   status: ContentStatus;
   published_at: string | null;
+  created_at?: string | null;
 };
 
 export type Plan = {
@@ -173,6 +177,7 @@ export type Placement = {
   payment_status: PaymentStatus;
   is_active: boolean;
   notes: string | null;
+  created_at?: string | null;
 };
 
 export type ClickSummary = {
@@ -193,6 +198,7 @@ export type NotificationItem = {
   image_media_id?: string | null;
   status: ContentStatus;
   published_at: string | null;
+  created_at?: string | null;
 };
 
 export type PushCampaign = {
@@ -254,6 +260,7 @@ export type Job = {
   status: ContentStatus;
   manual_priority: number;
   published_at: string | null;
+  created_at?: string | null;
 };
 
 export type AlertItem = {
@@ -271,6 +278,7 @@ export type AlertItem = {
   status: ContentStatus;
   manual_priority: number;
   published_at: string | null;
+  created_at?: string | null;
 };
 
 export type CityUpdate = {
@@ -287,6 +295,7 @@ export type CityUpdate = {
   status: ContentStatus;
   manual_priority: number;
   published_at: string | null;
+  created_at?: string | null;
 };
 
 export type Pharmacy = {
