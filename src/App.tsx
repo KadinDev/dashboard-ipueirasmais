@@ -347,13 +347,100 @@ function ImagePreviewInput({ name, label }: { name: string; label: string }) {
   );
 }
 
+type OptimizedImage = {
+  file: File;
+  width: number | null;
+  height: number | null;
+  originalSize: number;
+};
+
+function imageUploadSettings(folder: string) {
+  if (folder.includes("logos") || folder === "pharmacies") {
+    return { maxWidth: 512, quality: 0.82 };
+  }
+
+  if (folder.includes("banners") || folder.includes("covers")) {
+    return { maxWidth: 1600, quality: 0.78 };
+  }
+
+  return { maxWidth: 1400, quality: 0.78 };
+}
+
+function loadImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível ler a imagem selecionada."));
+    };
+    image.src = url;
+  });
+}
+
+async function optimizeImageBeforeUpload(
+  file: File,
+  folder: string,
+): Promise<OptimizedImage> {
+  if (!file.type.startsWith("image/")) {
+    return { file, width: null, height: null, originalSize: file.size };
+  }
+
+  try {
+    const { maxWidth, quality } = imageUploadSettings(folder);
+    const image = await loadImage(file);
+    const scale = Math.min(1, maxWidth / image.naturalWidth);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas indisponível para otimizar imagem.");
+
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", quality);
+    });
+
+    if (!blob) throw new Error("O navegador não conseguiu gerar WebP.");
+
+    const optimizedFile = new File(
+      [blob],
+      `${file.name.replace(/\.[^.]+$/, "")}.webp`,
+      { type: "image/webp" },
+    );
+
+    return {
+      file: optimizedFile,
+      width,
+      height,
+      originalSize: file.size,
+    };
+  } catch (error) {
+    console.warn("Upload sem compressão por falha ao otimizar imagem.", error);
+    return { file, width: null, height: null, originalSize: file.size };
+  }
+}
+
 async function uploadMedia(file: File, folder: string, altText: string) {
-  const extension = file.name.split(".").pop() || "webp";
+  const optimized = await optimizeImageBeforeUpload(file, folder);
+  const uploadFile = optimized.file;
+  const extension = uploadFile.name.split(".").pop() || "webp";
   const storagePath = `${folder}/${crypto.randomUUID()}.${extension}`;
   const upload = await supabase.storage
     .from("public-media")
-    .upload(storagePath, file, {
+    .upload(storagePath, uploadFile, {
       cacheControl: "31536000",
+      contentType: uploadFile.type || "image/webp",
       upsert: false,
     });
 
@@ -369,7 +456,9 @@ async function uploadMedia(file: File, folder: string, altText: string) {
       storage_path: storagePath,
       public_url: data.publicUrl,
       alt_text: altText,
-      size_bytes: file.size,
+      width: optimized.width,
+      height: optimized.height,
+      size_bytes: uploadFile.size,
     })
     .select("id")
     .single();
