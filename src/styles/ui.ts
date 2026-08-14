@@ -17,10 +17,14 @@ export const Sidebar = styled.aside`
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 
   @media (max-width: 880px) {
     position: static;
     height: auto;
+    max-height: none;
+    overflow-y: visible;
   }
 `;
 

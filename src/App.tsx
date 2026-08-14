@@ -8,14 +8,15 @@ import {
   Briefcase,
   Crown,
   Bell,
-  Cross,
   AlertTriangle,
   LayoutDashboard,
   LogOut,
   Megaphone,
   Newspaper,
+  Phone,
   RefreshCcw,
   Send,
+  Smartphone,
   Sparkles,
 } from "lucide-react";
 import {
@@ -49,6 +50,7 @@ import { hasSupabaseEnv, supabase } from "./lib/supabase";
 import { centsToBRL, dateInputValue, slugify, toIsoOrNull } from "./lib/format";
 import type {
   Banner,
+  AppVersion,
   AlertItem,
   Category,
   City,
@@ -67,6 +69,7 @@ import type {
   Plan,
   PushCampaign,
   Promotion,
+  UsefulService,
 } from "./lib/types";
 
 type Tab =
@@ -78,6 +81,7 @@ type Tab =
   | "alerts"
   | "cityUpdates"
   | "pharmacies"
+  | "appVersions"
   | "news"
   | "notifications"
   | "push"
@@ -93,7 +97,8 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "jobs", label: "Vagas", icon: Briefcase },
   { id: "alerts", label: "Avisos", icon: AlertTriangle },
   { id: "cityUpdates", label: "Novidades", icon: Sparkles },
-  { id: "pharmacies", label: "Farmácias", icon: Cross },
+  { id: "pharmacies", label: "Serviços úteis", icon: Phone },
+  { id: "appVersions", label: "Versão app", icon: Smartphone },
   { id: "news", label: "Notícias", icon: Newspaper },
   { id: "notifications", label: "Notificações", icon: Bell },
   { id: "push", label: "Push", icon: Send },
@@ -140,6 +145,24 @@ const pushStatusLabels = {
   cancelled: "Cancelado",
 };
 
+const usefulServiceTypeLabels = {
+  pharmacy: "Farmácia",
+  hospital: "Hospital",
+  samu: "SAMU",
+  police: "Polícia",
+  firefighters: "Bombeiros",
+  city_hall: "Prefeitura",
+  enel: "Enel",
+  cagece: "Cagece",
+  other: "Outro",
+};
+
+const appPlatformLabels = {
+  all: "Android e iOS",
+  android: "Somente Android",
+  ios: "Somente iOS",
+};
+
 const dayLabels = [
   { value: 0, label: "Domingo" },
   { value: 1, label: "Segunda" },
@@ -167,6 +190,7 @@ type DatedRow = {
   created_at?: string | null;
   published_at?: string | null;
   starts_at?: string | null;
+  updated_at?: string | null;
 };
 
 function normalizedText(value: string) {
@@ -177,7 +201,8 @@ function normalizedText(value: string) {
 }
 
 function recentTime(item: DatedRow) {
-  const rawDate = item.created_at || item.published_at || item.starts_at || "";
+  const rawDate =
+    item.created_at || item.published_at || item.starts_at || item.updated_at || "";
   const time = rawDate ? new Date(rawDate).getTime() : 0;
   return Number.isFinite(time) ? time : 0;
 }
@@ -463,6 +488,8 @@ function AdminDashboard() {
   const [pharmacyShifts, setPharmacyShifts] = useState<PharmacyDutyShift[]>(
     [],
   );
+  const [usefulServices, setUsefulServices] = useState<UsefulService[]>([]);
+  const [appVersions, setAppVersions] = useState<AppVersion[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [pushCampaigns, setPushCampaigns] = useState<PushCampaign[]>([]);
@@ -510,6 +537,15 @@ function AdminDashboard() {
         .select("*")
         .order("starts_at", { ascending: false }),
       supabase
+        .from("useful_services")
+        .select("*")
+        .order("manual_priority")
+        .order("name"),
+      supabase
+        .from("app_versions")
+        .select("*")
+        .order("updated_at", { ascending: false }),
+      supabase
         .from("news")
         .select("*")
         .order("published_at", { ascending: false }),
@@ -550,13 +586,15 @@ function AdminDashboard() {
       setCityUpdates((requests[9].data || []) as CityUpdate[]);
       setPharmacies((requests[10].data || []) as Pharmacy[]);
       setPharmacyShifts((requests[11].data || []) as PharmacyDutyShift[]);
-      setNews((requests[12].data || []) as NewsItem[]);
-      setNotifications((requests[13].data || []) as NotificationItem[]);
-      setPushCampaigns((requests[14].data || []) as PushCampaign[]);
-      setBanners((requests[15].data || []) as Banner[]);
-      setPlans((requests[16].data || []) as Plan[]);
-      setPlacements((requests[17].data || []) as Placement[]);
-      setMetrics((requests[18].data || []) as ClickSummary[]);
+      setUsefulServices((requests[12].data || []) as UsefulService[]);
+      setAppVersions((requests[13].data || []) as AppVersion[]);
+      setNews((requests[14].data || []) as NewsItem[]);
+      setNotifications((requests[15].data || []) as NotificationItem[]);
+      setPushCampaigns((requests[16].data || []) as PushCampaign[]);
+      setBanners((requests[17].data || []) as Banner[]);
+      setPlans((requests[18].data || []) as Plan[]);
+      setPlacements((requests[19].data || []) as Placement[]);
+      setMetrics((requests[20].data || []) as ClickSummary[]);
     }
 
     setLoading(false);
@@ -719,7 +757,16 @@ function AdminDashboard() {
             cityId={cityId}
             pharmacies={pharmacies}
             shifts={pharmacyShifts}
+            usefulServices={usefulServices}
             companies={companies}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "appVersions" && (
+          <AppVersionsSection
+            cityId={cityId}
+            appVersions={appVersions}
             onSaved={loadData}
           />
         )}
@@ -2832,20 +2879,27 @@ function PharmaciesSection({
   cityId,
   pharmacies,
   shifts,
+  usefulServices,
   companies,
   onSaved,
 }: {
   cityId: string;
   pharmacies: Pharmacy[];
   shifts: PharmacyDutyShift[];
+  usefulServices: UsefulService[];
   companies: Company[];
   onSaved: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState<Pharmacy | null>(null);
+  const [editingService, setEditingService] = useState<UsefulService | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
+  const [serviceSaving, setServiceSaving] = useState(false);
   const [shiftSaving, setShiftSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const usefulServiceList = usePaginatedItems(usefulServices);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2931,6 +2985,56 @@ function PharmaciesSection({
     }
   }
 
+  async function handleUsefulServiceSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setServiceSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const payload = {
+        city_id: cityId,
+        service_type: textValue(form.get("service_type")),
+        name: textValue(form.get("name")),
+        phone: textValue(form.get("phone")) || null,
+        whatsapp: textValue(form.get("whatsapp")) || null,
+        address_line: textValue(form.get("address_line")) || null,
+        latitude: textValue(form.get("latitude"))
+          ? Number(form.get("latitude"))
+          : null,
+        longitude: textValue(form.get("longitude"))
+          ? Number(form.get("longitude"))
+          : null,
+        note: textValue(form.get("note")) || null,
+        status: textValue(form.get("status")) || "published",
+        manual_priority: Number(form.get("manual_priority") || 100),
+      };
+
+      if (editingService) {
+        await assertNoError(
+          await supabase
+            .from("useful_services")
+            .update(payload)
+            .eq("id", editingService.id),
+        );
+      } else {
+        await assertNoError(
+          await supabase.from("useful_services").insert(payload),
+        );
+      }
+
+      setEditingService(null);
+      formElement.reset();
+      setFormSuccess("Serviço útil salvo com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setServiceSaving(false);
+    }
+  }
+
   async function archivePharmacy(id: string) {
     await supabase.from("pharmacies").update({ status: "archived" }).eq("id", id);
     await onSaved();
@@ -2944,9 +3048,26 @@ function PharmaciesSection({
     await onSaved();
   }
 
+  async function archiveUsefulService(id: string) {
+    await supabase
+      .from("useful_services")
+      .update({ status: "archived" })
+      .eq("id", id);
+    await onSaved();
+  }
+
+  async function deleteUsefulService(id: string) {
+    await deleteRows("useful_services", id, onSaved);
+  }
+
   return (
     <>
       <EditorCard title={editing ? "Editar farmácia" : "Nova farmácia"}>
+        <Muted>
+          Use este cadastro para farmácia de plantão. Aqui vale preencher
+          WhatsApp, endereço e localização para o app mostrar botões de contato
+          e mapa.
+        </Muted>
         <form onSubmit={handleSubmit}>
           {formError && <ErrorBox>{formError}</ErrorBox>}
           {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
@@ -3066,6 +3187,139 @@ function PharmaciesSection({
         </form>
       </EditorCard>
 
+      <EditorCard
+        title={
+          editingService ? "Editar telefone útil" : "Novo telefone útil"
+        }
+      >
+        <Muted>
+          Para hospital, SAMU, Polícia, Bombeiros, Prefeitura, Enel e Cagece,
+          preencha principalmente nome e telefone. WhatsApp, endereço e
+          localização são opcionais e só devem ser usados quando fizer sentido
+          exibir ações extras no app.
+        </Muted>
+        <form onSubmit={handleUsefulServiceSubmit}>
+          <FormGrid>
+            <Field>
+              Tipo de serviço
+              <Select
+                name="service_type"
+                defaultValue={editingService?.service_type || "hospital"}
+              >
+                {Object.entries(usefulServiceTypeLabels).map(
+                  ([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ),
+                )}
+              </Select>
+            </Field>
+            <Field>
+              Nome
+              <Input
+                name="name"
+                required
+                placeholder="Ex: Hospital Municipal"
+                defaultValue={editingService?.name || ""}
+              />
+            </Field>
+            <Field>
+              Telefone
+              <Input
+                name="phone"
+                placeholder="Ex: 192, 190 ou 88 99999-9999"
+                defaultValue={editingService?.phone || ""}
+              />
+            </Field>
+            <Field>
+              WhatsApp opcional
+              <Input
+                name="whatsapp"
+                placeholder="Ex: 5588999999999"
+                defaultValue={editingService?.whatsapp || ""}
+              />
+            </Field>
+            <Field>
+              Endereço opcional
+              <Input
+                name="address_line"
+                placeholder="Preencha só se o app precisar mostrar localização"
+                defaultValue={editingService?.address_line || ""}
+              />
+            </Field>
+            <Field>
+              Latitude opcional
+              <Input
+                name="latitude"
+                type="number"
+                step="0.0000001"
+                placeholder="Ex: -4.5432100"
+                defaultValue={editingService?.latitude ?? ""}
+              />
+            </Field>
+            <Field>
+              Longitude opcional
+              <Input
+                name="longitude"
+                type="number"
+                step="0.0000001"
+                placeholder="Ex: -40.7178900"
+                defaultValue={editingService?.longitude ?? ""}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select
+                name="status"
+                defaultValue={editingService?.status || "published"}
+              >
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editingService?.manual_priority || 100}
+              />
+            </Field>
+          </FormGrid>
+          <Field>
+            Horário ou observação
+            <TextArea
+              name="note"
+              placeholder="Ex: Atendimento 24h, ligação gratuita, plantão administrativo..."
+              defaultValue={editingService?.note || ""}
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={serviceSaving}>
+              {serviceSaving
+                ? "Salvando..."
+                : editingService
+                  ? "Salvar telefone útil"
+                  : "Criar telefone útil"}
+            </Button>
+            {editingService && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={serviceSaving}
+                onClick={() => setEditingService(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
       <EditorCard title="Novo plantão">
         <form onSubmit={handleShiftSubmit}>
           <FormGrid>
@@ -3146,6 +3400,55 @@ function PharmaciesSection({
       </ResourceTable>
 
       <ResourceTable
+        title="Telefones úteis cadastrados"
+        empty="Nenhum telefone útil cadastrado ainda."
+        headers={["Nome", "Tipo", "Contato", "Status", "Ações"]}
+        controls={
+          <PaginationControls
+            page={usefulServiceList.page}
+            totalPages={usefulServiceList.totalPages}
+            totalItems={usefulServiceList.totalItems}
+            onPage={usefulServiceList.setPage}
+          />
+        }
+      >
+        {usefulServiceList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.name}</strong>
+              <Muted>{item.note || item.address_line || "Sem observação"}</Muted>
+            </td>
+            <td>{usefulServiceTypeLabels[item.service_type]}</td>
+            <td>{item.phone || item.whatsapp || "-"}</td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditingService(item)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => archiveUsefulService(item.id)}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteUsefulService(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+
+      <ResourceTable
         title="Plantões cadastrados"
         empty="Nenhum plantão cadastrado ainda."
         headers={["Farmácia", "Período", "Status", "Ações"]}
@@ -3169,6 +3472,249 @@ function PharmaciesSection({
               <Button $variant="danger" onClick={() => archiveShift(item.id)}>
                 Arquivar
               </Button>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function AppVersionsSection({
+  cityId,
+  appVersions,
+  onSaved,
+}: {
+  cityId: string;
+  appVersions: AppVersion[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<AppVersion | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const appVersionList = usePaginatedItems(appVersions);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+    const form = new FormData(formElement);
+    try {
+      const payload = {
+        city_id: cityId || null,
+        platform: textValue(form.get("platform")) || "all",
+        latest_version: textValue(form.get("latest_version")),
+        minimum_version: textValue(form.get("minimum_version")),
+        message: textValue(form.get("message")),
+        android_url: textValue(form.get("android_url")) || null,
+        ios_url: textValue(form.get("ios_url")) || null,
+        update_required: form.get("update_required") === "on",
+        status: textValue(form.get("status")) || "published",
+        manual_priority: Number(form.get("manual_priority") || 100),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("app_versions")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("app_versions").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Configuração de versão salva com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveAppVersion(id: string) {
+    await supabase
+      .from("app_versions")
+      .update({ status: "archived" })
+      .eq("id", id);
+    await onSaved();
+  }
+
+  async function deleteAppVersion(id: string) {
+    await deleteRows("app_versions", id, onSaved);
+  }
+
+  return (
+    <>
+      <EditorCard
+        title={
+          editing ? "Editar atualização do app" : "Nova atualização do app"
+        }
+      >
+        <Muted>
+          Use atualização opcional para avisar sobre uma versão nova. Marque
+          como obrigatória apenas quando uma versão antiga deixar de funcionar
+          com segurança por mudança importante na API.
+        </Muted>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Plataforma
+              <Select name="platform" defaultValue={editing?.platform || "all"}>
+                {Object.entries(appPlatformLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Versão mais recente
+              <Input
+                name="latest_version"
+                required
+                placeholder="Ex: 1.2.0"
+                defaultValue={editing?.latest_version || ""}
+              />
+            </Field>
+            <Field>
+              Versão mínima permitida
+              <Input
+                name="minimum_version"
+                required
+                placeholder="Ex: 1.1.0"
+                defaultValue={editing?.minimum_version || ""}
+              />
+            </Field>
+            <Field>
+              Link da Play Store
+              <Input
+                name="android_url"
+                placeholder="Cole o link do app na Play Store"
+                defaultValue={editing?.android_url || ""}
+              />
+            </Field>
+            <Field>
+              Link da App Store
+              <Input
+                name="ios_url"
+                placeholder="Cole o link do app na App Store"
+                defaultValue={editing?.ios_url || ""}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "published"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <Field style={{ marginTop: 20 }}>
+              Atualização obrigatória?
+              <Input
+                name="update_required"
+                type="checkbox"
+                defaultChecked={editing?.update_required || false}
+                style={{ width: 20, height: 20 }}
+              />
+            </Field>
+          </FormGrid>
+          <Field>
+            Mensagem exibida ao usuário
+            <TextArea
+              name="message"
+              required
+              defaultValue={
+                editing?.message ||
+                "Uma nova versão do Ipueiras+ está disponível."
+              }
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar atualização"
+                  : "Criar atualização"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Atualizações cadastradas"
+        empty="Nenhuma configuração de atualização cadastrada ainda."
+        headers={["Versão", "Plataforma", "Tipo", "Status", "Ações"]}
+        controls={
+          <PaginationControls
+            page={appVersionList.page}
+            totalPages={appVersionList.totalPages}
+            totalItems={appVersionList.totalItems}
+            onPage={appVersionList.setPage}
+          />
+        }
+      >
+        {appVersionList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.latest_version}</strong>
+              <Muted>Mínima: {item.minimum_version}</Muted>
+            </td>
+            <td>{appPlatformLabels[item.platform]}</td>
+            <td>{item.update_required ? "Obrigatória" : "Opcional"}</td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => archiveAppVersion(item.id)}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteAppVersion(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
             </td>
           </tr>
         ))}
@@ -4547,6 +5093,7 @@ const SidebarFooter = styled.div`
   display: grid;
   gap: 8px;
   margin-top: 28px;
+  padding-bottom: 8px;
 
   button {
     justify-content: center;

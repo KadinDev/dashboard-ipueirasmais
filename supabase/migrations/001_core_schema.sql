@@ -2,7 +2,8 @@
 -- Public mobile app, private admin dashboard.
 
 create extension if not exists pgcrypto;
-create extension if not exists unaccent;
+create schema if not exists extensions;
+create extension if not exists unaccent with schema extensions;
 
 create type public.content_status as enum ('draft', 'published', 'paused', 'archived');
 create type public.category_kind as enum ('company', 'event', 'news');
@@ -248,6 +249,7 @@ create table public.app_settings (
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();

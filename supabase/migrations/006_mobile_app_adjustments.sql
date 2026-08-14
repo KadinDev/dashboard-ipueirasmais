@@ -11,7 +11,7 @@ create or replace function public.get_home_payload(p_city_slug text default 'ipu
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with selected_city as (

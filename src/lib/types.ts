@@ -222,6 +222,47 @@ export type PushCampaign = {
   created_at: string;
 };
 
+export type UsefulService = {
+  id: string;
+  city_id: string;
+  service_type:
+    | "pharmacy"
+    | "hospital"
+    | "samu"
+    | "police"
+    | "firefighters"
+    | "city_hall"
+    | "enel"
+    | "cagece"
+    | "other";
+  name: string;
+  phone: string | null;
+  whatsapp: string | null;
+  address_line: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  note: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  created_at?: string | null;
+};
+
+export type AppVersion = {
+  id: string;
+  city_id: string | null;
+  platform: "all" | "android" | "ios";
+  latest_version: string;
+  minimum_version: string;
+  message: string;
+  android_url: string | null;
+  ios_url: string | null;
+  update_required: boolean;
+  status: ContentStatus;
+  manual_priority: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type Promotion = {
   id: string;
   city_id: string;

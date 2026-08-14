@@ -2,7 +2,7 @@
 -- Prefer these views in the app to reduce joins, payload size and duplicated logic.
 
 create or replace view public.public_company_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   c.id,
@@ -64,7 +64,7 @@ left join lateral (
 where c.status = 'published';
 
 create or replace view public.public_company_details
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   c.id,
@@ -138,7 +138,7 @@ where c.status = 'published'
 group by c.id, cat.name, cat.slug, logo.public_url, cover.public_url, best_placement.placement_type;
 
 create or replace view public.public_event_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   e.id,
@@ -184,7 +184,7 @@ where e.status = 'published'
   and coalesce(e.ends_at, e.starts_at) >= now() - interval '6 hours';
 
 create or replace view public.public_event_details
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   e.id,
@@ -235,7 +235,7 @@ where e.status = 'published'
   and coalesce(e.ends_at, e.starts_at) >= now() - interval '6 hours';
 
 create or replace view public.public_home_banners
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   b.id,
@@ -256,7 +256,7 @@ where b.status = 'published'
 order by b.manual_priority asc, b.created_at desc;
 
 create or replace view public.public_news_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   n.id,

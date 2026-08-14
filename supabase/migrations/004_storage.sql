@@ -1,5 +1,7 @@
 -- Public media bucket for app images.
--- Files are publicly readable, but only admins can upload/update/delete.
+-- Files are publicly readable by direct public URL, but only admins can
+-- upload/update/delete. We intentionally do not grant public SELECT on
+-- storage.objects to avoid bucket listing through the Storage API.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -14,15 +16,9 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
-drop policy if exists "Public can read public media" on storage.objects;
 drop policy if exists "Admins can upload public media" on storage.objects;
 drop policy if exists "Admins can update public media" on storage.objects;
 drop policy if exists "Admins can delete public media" on storage.objects;
-
-create policy "Public can read public media"
-on storage.objects for select
-to anon, authenticated
-using (bucket_id = 'public-media');
 
 create policy "Admins can upload public media"
 on storage.objects for insert

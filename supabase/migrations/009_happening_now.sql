@@ -269,7 +269,7 @@ using (public.is_admin())
 with check (public.is_admin());
 
 create or replace view public.public_promotion_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   p.id,
@@ -311,7 +311,7 @@ where p.status = 'published'
   and (p.valid_until is null or p.valid_until >= now());
 
 create or replace view public.public_job_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   j.id,
@@ -339,7 +339,7 @@ left join public.companies c on c.id = j.company_id
 where j.status = 'published';
 
 create or replace view public.public_alert_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   a.id,
@@ -361,7 +361,7 @@ left join public.media_assets image on image.id = a.image_media_id
 where a.status = 'published';
 
 create or replace view public.public_alert_details
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   a.id,
@@ -385,7 +385,7 @@ left join public.media_assets image on image.id = a.image_media_id
 where a.status = 'published';
 
 create or replace view public.public_city_update_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   u.id,
@@ -409,7 +409,7 @@ left join public.media_assets image on image.id = u.image_media_id
 where u.status = 'published';
 
 create or replace view public.public_pharmacy_duty
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   s.id as shift_id,
@@ -450,7 +450,7 @@ create or replace function public.get_promotion_list(
 returns setof public.public_promotion_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select p.*
@@ -468,7 +468,7 @@ create or replace function public.get_job_list(
 returns setof public.public_job_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select j.*
@@ -486,7 +486,7 @@ create or replace function public.get_alert_list(
 returns setof public.public_alert_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select a.*
@@ -508,7 +508,7 @@ create or replace function public.get_city_update_list(
 returns setof public.public_city_update_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select u.*
@@ -525,7 +525,7 @@ create or replace function public.get_pharmacy_duty_list(
 returns setof public.public_pharmacy_duty
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select p.*
@@ -548,7 +548,7 @@ create or replace function public.get_happening_now_summary(p_city_slug text def
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with selected_city as (
@@ -613,7 +613,7 @@ create or replace function public.get_home_payload(p_city_slug text default 'ipu
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with selected_city as (

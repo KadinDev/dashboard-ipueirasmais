@@ -27,7 +27,7 @@ alter table public.banners
   add column if not exists notes text;
 
 create or replace view public.public_company_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   c.id,
@@ -84,7 +84,7 @@ left join lateral (
 where c.status = 'published';
 
 create or replace view public.public_event_cards
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   e.id,
@@ -127,7 +127,7 @@ where e.status = 'published'
 drop view if exists public.public_event_details;
 
 create view public.public_event_details
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   e.id,
@@ -173,7 +173,7 @@ where e.status = 'published'
   and coalesce(e.ends_at, e.starts_at) >= now() - interval '6 hours';
 
 create or replace view public.public_home_banners
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   b.id,
@@ -199,7 +199,7 @@ create or replace function public.get_home_payload(p_city_slug text default 'ipu
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with selected_city as (
@@ -271,7 +271,7 @@ create or replace function public.get_company_list(p_city_slug text default 'ipu
 returns setof public.public_company_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select c.*
@@ -288,7 +288,7 @@ create or replace function public.get_event_list(p_city_slug text default 'ipuei
 returns setof public.public_event_cards
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select e.*

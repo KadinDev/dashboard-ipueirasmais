@@ -44,7 +44,7 @@ using (public.is_admin())
 with check (public.is_admin());
 
 create or replace view public.public_notifications
-with (security_invoker = false)
+with (security_invoker = true)
 as
 select
   n.id,
@@ -68,7 +68,7 @@ create or replace function public.get_random_featured_company_for_news(
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   select to_jsonb(c)
@@ -85,7 +85,7 @@ create or replace function public.get_home_payload(p_city_slug text default 'ipu
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with selected_city as (
