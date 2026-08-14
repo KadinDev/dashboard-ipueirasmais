@@ -171,6 +171,15 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
+create policy "Public can read active placements"
+on public.placements for select
+to anon, authenticated
+using (
+  is_active = true
+  and starts_at <= now()
+  and (ends_at is null or ends_at >= now())
+);
+
 create policy "Public can read active published banners"
 on public.banners for select
 to anon, authenticated
