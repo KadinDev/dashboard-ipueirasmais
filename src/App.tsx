@@ -2350,11 +2350,11 @@ function JobsSection({
               />
             </Field>
             <Field>
-              Link de candidatura
+              Como entrar em contato
               <Input
                 name="application_url"
                 defaultValue={editing?.application_url || ""}
-                placeholder="Ex: https://site.com/candidatura"
+                placeholder="Entre em contato em..."
               />
             </Field>
             <Field>

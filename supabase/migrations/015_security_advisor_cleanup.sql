@@ -26,6 +26,8 @@ declare
   function_signatures text[] := array[
     'public.get_home_payload(text)',
     'public.get_company_list(text,text)',
+    'public.get_company_list(text,text,integer,integer)',
+    'public.get_company_list(text,text,text,integer,integer)',
     'public.get_event_list(text,text)',
     'public.get_random_featured_company_for_news(uuid)',
     'public.get_promotion_list(text,text)',
