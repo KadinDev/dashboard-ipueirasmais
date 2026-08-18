@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   Briefcase,
+  ClockAlert,
   Crown,
   Bell,
   AlertTriangle,
@@ -15,7 +16,9 @@ import {
   Newspaper,
   Phone,
   RefreshCcw,
+  Search,
   Send,
+  ShoppingBag,
   Smartphone,
   Sparkles,
 } from "lucide-react";
@@ -56,11 +59,13 @@ import type {
   City,
   CityUpdate,
   ClickSummary,
+  ClassifiedItem,
   Company,
   CompanyContact,
   CompanyHour,
   EventItem,
   Job,
+  LostFoundItem,
   NewsItem,
   NotificationItem,
   Pharmacy,
@@ -77,6 +82,9 @@ type Tab =
   | "companies"
   | "events"
   | "promotions"
+  | "expired"
+  | "lostFound"
+  | "classifieds"
   | "jobs"
   | "alerts"
   | "cityUpdates"
@@ -94,6 +102,9 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "companies", label: "Empresas", icon: Building2 },
   { id: "events", label: "Eventos", icon: CalendarDays },
   { id: "promotions", label: "Promoções", icon: BadgePercent },
+  { id: "expired", label: "Expirados", icon: ClockAlert },
+  { id: "lostFound", label: "Achados e perdidos", icon: Search },
+  { id: "classifieds", label: "Classificados", icon: ShoppingBag },
   { id: "jobs", label: "Vagas", icon: Briefcase },
   { id: "alerts", label: "Avisos", icon: AlertTriangle },
   { id: "cityUpdates", label: "Novidades", icon: Sparkles },
@@ -570,6 +581,8 @@ function AdminDashboard() {
   const [companyHours, setCompanyHours] = useState<CompanyHour[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
+  const [classifieds, setClassifieds] = useState<ClassifiedItem[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [cityUpdates, setCityUpdates] = useState<CityUpdate[]>([]);
@@ -608,6 +621,14 @@ function AdminDashboard() {
         .from("promotions")
         .select("*")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("lost_found_items")
+        .select("*")
+        .order("published_at", { ascending: false }),
+      supabase
+        .from("classifieds")
+        .select("*")
+        .order("published_at", { ascending: false }),
       supabase
         .from("jobs")
         .select("*")
@@ -670,20 +691,22 @@ function AdminDashboard() {
       setCompanyHours((requests[4].data || []) as CompanyHour[]);
       setEvents((requests[5].data || []) as EventItem[]);
       setPromotions((requests[6].data || []) as Promotion[]);
-      setJobs((requests[7].data || []) as Job[]);
-      setAlerts((requests[8].data || []) as AlertItem[]);
-      setCityUpdates((requests[9].data || []) as CityUpdate[]);
-      setPharmacies((requests[10].data || []) as Pharmacy[]);
-      setPharmacyShifts((requests[11].data || []) as PharmacyDutyShift[]);
-      setUsefulServices((requests[12].data || []) as UsefulService[]);
-      setAppVersions((requests[13].data || []) as AppVersion[]);
-      setNews((requests[14].data || []) as NewsItem[]);
-      setNotifications((requests[15].data || []) as NotificationItem[]);
-      setPushCampaigns((requests[16].data || []) as PushCampaign[]);
-      setBanners((requests[17].data || []) as Banner[]);
-      setPlans((requests[18].data || []) as Plan[]);
-      setPlacements((requests[19].data || []) as Placement[]);
-      setMetrics((requests[20].data || []) as ClickSummary[]);
+      setLostFoundItems((requests[7].data || []) as LostFoundItem[]);
+      setClassifieds((requests[8].data || []) as ClassifiedItem[]);
+      setJobs((requests[9].data || []) as Job[]);
+      setAlerts((requests[10].data || []) as AlertItem[]);
+      setCityUpdates((requests[11].data || []) as CityUpdate[]);
+      setPharmacies((requests[12].data || []) as Pharmacy[]);
+      setPharmacyShifts((requests[13].data || []) as PharmacyDutyShift[]);
+      setUsefulServices((requests[14].data || []) as UsefulService[]);
+      setAppVersions((requests[15].data || []) as AppVersion[]);
+      setNews((requests[16].data || []) as NewsItem[]);
+      setNotifications((requests[17].data || []) as NotificationItem[]);
+      setPushCampaigns((requests[18].data || []) as PushCampaign[]);
+      setBanners((requests[19].data || []) as Banner[]);
+      setPlans((requests[20].data || []) as Plan[]);
+      setPlacements((requests[21].data || []) as Placement[]);
+      setMetrics((requests[22].data || []) as ClickSummary[]);
     }
 
     setLoading(false);
@@ -770,6 +793,8 @@ function AdminDashboard() {
             companies={companies}
             events={events}
             promotions={promotions}
+            lostFoundItems={lostFoundItems}
+            classifieds={classifieds}
             jobs={jobs}
             alerts={alerts}
             cityUpdates={cityUpdates}
@@ -809,6 +834,31 @@ function AdminDashboard() {
           />
         )}
 
+        {activeTab === "expired" && (
+          <ExpiredSection
+            events={events}
+            promotions={promotions}
+            companies={companies}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "lostFound" && (
+          <LostFoundSection
+            cityId={cityId}
+            items={lostFoundItems}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "classifieds" && (
+          <ClassifiedsSection
+            cityId={cityId}
+            classifieds={classifieds}
+            onSaved={loadData}
+          />
+        )}
+
         {activeTab === "jobs" && (
           <JobsSection
             cityId={cityId}
@@ -835,6 +885,8 @@ function AdminDashboard() {
             companies={companies}
             events={events}
             promotions={promotions}
+            lostFoundItems={lostFoundItems}
+            classifieds={classifieds}
             jobs={jobs}
             alerts={alerts}
             onSaved={loadData}
@@ -885,6 +937,8 @@ function AdminDashboard() {
             companies={companies}
             events={events}
             promotions={promotions}
+            lostFoundItems={lostFoundItems}
+            classifieds={classifieds}
             jobs={jobs}
             news={news}
             onSaved={loadData}
@@ -916,6 +970,8 @@ function AdminDashboard() {
             companies={companies}
             events={events}
             promotions={promotions}
+            lostFoundItems={lostFoundItems}
+            classifieds={classifieds}
             jobs={jobs}
             alerts={alerts}
             cityUpdates={cityUpdates}
@@ -931,6 +987,8 @@ function Overview({
   companies,
   events,
   promotions,
+  lostFoundItems,
+  classifieds,
   jobs,
   alerts,
   cityUpdates,
@@ -941,6 +999,8 @@ function Overview({
   companies: Company[];
   events: EventItem[];
   promotions: Promotion[];
+  lostFoundItems: LostFoundItem[];
+  classifieds: ClassifiedItem[];
   jobs: Job[];
   alerts: AlertItem[];
   cityUpdates: CityUpdate[];
@@ -973,6 +1033,18 @@ function Overview({
         <Muted>Promoções publicadas</Muted>
         <StatValue>
           {promotions.filter((item) => item.status === "published").length}
+        </StatValue>
+      </Card>
+      <Card>
+        <Muted>Achados e perdidos</Muted>
+        <StatValue>
+          {lostFoundItems.filter((item) => item.status === "published").length}
+        </StatValue>
+      </Card>
+      <Card>
+        <Muted>Classificados publicados</Muted>
+        <StatValue>
+          {classifieds.filter((item) => item.status === "published").length}
         </StatValue>
       </Card>
       <Card>
@@ -2189,6 +2261,697 @@ function PromotionsSection({
   );
 }
 
+function ExpiredSection({
+  events,
+  promotions,
+  companies,
+  onSaved,
+}: {
+  events: EventItem[];
+  promotions: Promotion[];
+  companies: Company[];
+  onSaved: () => Promise<void>;
+}) {
+  const now = Date.now();
+
+  const expiredEvents = useMemo(() => {
+    return events.filter((event) => {
+      if (event.status === "archived") return false;
+      const referenceDate = event.ends_at || event.starts_at;
+      const referenceTime = new Date(referenceDate).getTime();
+      return Number.isFinite(referenceTime) && referenceTime < now;
+    });
+  }, [events, now]);
+
+  const expiredPromotions = useMemo(() => {
+    return promotions.filter((promotion) => {
+      if (promotion.status === "archived" || !promotion.valid_until) {
+        return false;
+      }
+      const validUntil = new Date(promotion.valid_until).getTime();
+      return Number.isFinite(validUntil) && validUntil < now;
+    });
+  }, [promotions, now]);
+
+  const eventList = usePaginatedItems(expiredEvents);
+  const promotionList = usePaginatedItems(expiredPromotions);
+
+  async function archiveEvent(id: string) {
+    await assertNoError(
+      await supabase.from("events").update({ status: "archived" }).eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function deleteEvent(id: string) {
+    if (!window.confirm("Tem certeza que deseja excluir este evento?")) return;
+    await assertNoError(
+      await supabase
+        .from("placements")
+        .delete()
+        .eq("entity_type", "event")
+        .eq("entity_id", id),
+    );
+    await assertNoError(await supabase.from("events").delete().eq("id", id));
+    await onSaved();
+  }
+
+  async function archivePromotion(id: string) {
+    await assertNoError(
+      await supabase
+        .from("promotions")
+        .update({ status: "archived" })
+        .eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function deletePromotion(id: string) {
+    await deleteRows("promotions", id, onSaved);
+  }
+
+  return (
+    <>
+      <Card>
+        <CardTitle>Conteúdos expirados</CardTitle>
+        <Muted>
+          Use esta tela para encontrar rapidamente eventos que já terminaram e
+          promoções que passaram da validade. Arquivar tira do app e mantém o
+          histórico; excluir remove definitivamente.
+        </Muted>
+      </Card>
+
+      <ResourceTable
+        title="Eventos encerrados"
+        empty="Nenhum evento encerrado encontrado."
+        headers={["Evento", "Fim usado", "Status", "Ações"]}
+        controls={
+          <PaginationControls
+            page={eventList.page}
+            totalPages={eventList.totalPages}
+            totalItems={eventList.totalItems}
+            onPage={eventList.setPage}
+          />
+        }
+      >
+        {eventList.visibleItems.map((event) => {
+          const referenceDate = event.ends_at || event.starts_at;
+          return (
+            <tr key={event.id}>
+              <td>
+                <strong>{event.title}</strong>
+                <Muted>{event.venue_name || event.address_line}</Muted>
+              </td>
+              <td>{new Date(referenceDate).toLocaleString("pt-BR")}</td>
+              <td>
+                <Badge $tone={statusTone(event.status)}>
+                  {statusLabels[event.status]}
+                </Badge>
+              </td>
+              <td>
+                <InlineActions>
+                  <Button
+                    $variant="danger"
+                    onClick={() => archiveEvent(event.id)}
+                  >
+                    Arquivar
+                  </Button>
+                  <Button
+                    $variant="danger"
+                    onClick={() => deleteEvent(event.id)}
+                  >
+                    Excluir
+                  </Button>
+                </InlineActions>
+              </td>
+            </tr>
+          );
+        })}
+      </ResourceTable>
+
+      <ResourceTable
+        title="Promoções vencidas"
+        empty="Nenhuma promoção vencida encontrada."
+        headers={["Promoção", "Empresa", "Validade", "Ações"]}
+        controls={
+          <PaginationControls
+            page={promotionList.page}
+            totalPages={promotionList.totalPages}
+            totalItems={promotionList.totalItems}
+            onPage={promotionList.setPage}
+          />
+        }
+      >
+        {promotionList.visibleItems.map((promotion) => (
+          <tr key={promotion.id}>
+            <td>
+              <strong>{promotion.title}</strong>
+              <Muted>{promotion.price_label || promotion.description}</Muted>
+            </td>
+            <td>
+              {companies.find((company) => company.id === promotion.company_id)
+                ?.name || "Sem empresa"}
+            </td>
+            <td>
+              {promotion.valid_until
+                ? new Date(promotion.valid_until).toLocaleString("pt-BR")
+                : "Sem validade"}
+            </td>
+            <td>
+              <InlineActions>
+                <Button
+                  $variant="danger"
+                  onClick={() => archivePromotion(promotion.id)}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deletePromotion(promotion.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function LostFoundSection({
+  cityId,
+  items,
+  onSaved,
+}: {
+  cityId: string;
+  items: LostFoundItem[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<LostFoundItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const itemList = usePaginatedSearch(items, (item) =>
+    [item.title, item.description, item.contact_label, item.item_type]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const title = textValue(form.get("title"));
+    const imageFile = fileValue(form, "image");
+    const status = textValue(form.get("status"));
+
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const imageId = imageFile
+        ? await uploadMedia(imageFile, "lost-found", title)
+        : null;
+      const payload = {
+        city_id: cityId,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        item_type: textValue(form.get("item_type")) || "lost",
+        description: textValue(form.get("description")) || null,
+        contact_label: textValue(form.get("contact_label")) || null,
+        occurred_at: toIsoOrNull(textValue(form.get("occurred_at"))),
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+        ...(imageId ? { image_media_id: imageId } : {}),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("lost_found_items")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(
+          await supabase.from("lost_found_items").insert(payload),
+        );
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Achado/perdido salvo com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveItem(id: string) {
+    await assertNoError(
+      await supabase
+        .from("lost_found_items")
+        .update({ status: "archived" })
+        .eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function deleteItem(id: string) {
+    await deleteRows("lost_found_items", id, onSaved);
+  }
+
+  return (
+    <>
+      <EditorCard
+        title={editing ? "Editar achado/perdido" : "Novo achado ou perdido"}
+      >
+        <Muted>
+          Cadastre documentos, objetos, chaves, celulares, pets ou qualquer
+          item achado/perdido na cidade. O contato pode ficar na descrição ou no
+          campo de contato.
+        </Muted>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Título
+              <Input
+                name="title"
+                required
+                defaultValue={editing?.title || ""}
+                placeholder="Ex: Documento perdido no Centro"
+              />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Tipo
+              <Select name="item_type" defaultValue={editing?.item_type || "lost"}>
+                <option value="lost">Perdido</option>
+                <option value="found">Achado</option>
+              </Select>
+            </Field>
+            <Field>
+              Data
+              <Input
+                name="occurred_at"
+                type="datetime-local"
+                defaultValue={dateInputValue(editing?.occurred_at)}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <ImagePreviewInput name="image" label="Imagem do item" />
+          </FormGrid>
+          <Field>
+            Como entrar em contato
+            <Input
+              name="contact_label"
+              defaultValue={editing?.contact_label || ""}
+              placeholder="Ex: Entrar em contato pelo WhatsApp 88 99999-9999"
+            />
+          </Field>
+          <Field>
+            Descrição
+            <TextArea
+              name="description"
+              defaultValue={editing?.description || ""}
+              placeholder="Explique se foi achado ou perdido, onde aconteceu e como a pessoa deve entrar em contato."
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar achado/perdido"
+                  : "Criar achado/perdido"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Achados e perdidos cadastrados"
+        empty="Nenhum achado ou perdido cadastrado ainda."
+        headers={["Item", "Tipo", "Data", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={itemList.search}
+            onSearch={itemList.setSearch}
+            placeholder="Pesquisar por título, descrição ou contato..."
+            page={itemList.page}
+            totalPages={itemList.totalPages}
+            totalItems={itemList.totalItems}
+            onPage={itemList.setPage}
+          />
+        }
+      >
+        {itemList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.description}</Muted>
+            </td>
+            <td>{item.item_type === "found" ? "Achado" : "Perdido"}</td>
+            <td>
+              {item.occurred_at
+                ? new Date(item.occurred_at).toLocaleDateString("pt-BR")
+                : item.published_at
+                  ? new Date(item.published_at).toLocaleDateString("pt-BR")
+                  : "Sem data"}
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button $variant="danger" onClick={() => archiveItem(item.id)}>
+                  Arquivar
+                </Button>
+                <Button $variant="danger" onClick={() => deleteItem(item.id)}>
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
+function ClassifiedsSection({
+  cityId,
+  classifieds,
+  onSaved,
+}: {
+  cityId: string;
+  classifieds: ClassifiedItem[];
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState<ClassifiedItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const classifiedList = usePaginatedSearch(classifieds, (item) =>
+    [item.title, item.description, item.price_label, item.whatsapp]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const title = textValue(form.get("title"));
+    const coverFile = fileValue(form, "cover");
+    const photo1File = fileValue(form, "photo_1");
+    const photo2File = fileValue(form, "photo_2");
+    const photo3File = fileValue(form, "photo_3");
+    const status = textValue(form.get("status"));
+
+    setSaving(true);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const coverId = coverFile
+        ? await uploadMedia(coverFile, "classifieds/covers", title)
+        : null;
+      const photo1Id = photo1File
+        ? await uploadMedia(photo1File, "classifieds/photos", title)
+        : null;
+      const photo2Id = photo2File
+        ? await uploadMedia(photo2File, "classifieds/photos", title)
+        : null;
+      const photo3Id = photo3File
+        ? await uploadMedia(photo3File, "classifieds/photos", title)
+        : null;
+      const payload = {
+        city_id: cityId,
+        title,
+        slug: textValue(form.get("slug")) || slugify(title),
+        description: textValue(form.get("description")) || null,
+        price_label: textValue(form.get("price_label")) || null,
+        whatsapp: textValue(form.get("whatsapp")) || null,
+        valid_until: toIsoOrNull(textValue(form.get("valid_until"))),
+        status,
+        manual_priority: Number(form.get("manual_priority") || 100),
+        published_at: status === "published" ? new Date().toISOString() : null,
+        ...(coverId ? { cover_media_id: coverId } : {}),
+        ...(photo1Id ? { photo_1_media_id: photo1Id } : {}),
+        ...(photo2Id ? { photo_2_media_id: photo2Id } : {}),
+        ...(photo3Id ? { photo_3_media_id: photo3Id } : {}),
+      };
+
+      if (editing) {
+        await assertNoError(
+          await supabase
+            .from("classifieds")
+            .update(payload)
+            .eq("id", editing.id),
+        );
+      } else {
+        await assertNoError(await supabase.from("classifieds").insert(payload));
+      }
+
+      setEditing(null);
+      formElement.reset();
+      setFormSuccess("Classificado salvo com sucesso.");
+      await onSaved();
+    } catch (error) {
+      setFormError(messageFromError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveClassified(id: string) {
+    await assertNoError(
+      await supabase
+        .from("classifieds")
+        .update({ status: "archived" })
+        .eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function deleteClassified(id: string) {
+    await deleteRows("classifieds", id, onSaved);
+  }
+
+  return (
+    <>
+      <EditorCard
+        title={editing ? "Editar classificado" : "Novo classificado"}
+      >
+        <Muted>
+          Cadastre produtos, veículos, imóveis ou itens usados. A capa aparece
+          no card e as fotos extras ficam prontas para a tela de detalhe no app.
+        </Muted>
+        <form onSubmit={handleSubmit}>
+          {formError && <ErrorBox>{formError}</ErrorBox>}
+          {formSuccess && <SuccessBox>{formSuccess}</SuccessBox>}
+          <FormGrid>
+            <Field>
+              Título
+              <Input
+                name="title"
+                required
+                defaultValue={editing?.title || ""}
+                placeholder="Ex: Bicicleta aro 29"
+              />
+            </Field>
+            <Field>
+              Slug
+              <Input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                placeholder="gerado automaticamente se vazio"
+              />
+            </Field>
+            <Field>
+              Valor
+              <Input
+                name="price_label"
+                defaultValue={editing?.price_label || ""}
+                placeholder="Ex: R$ 850,00"
+              />
+            </Field>
+            <Field>
+              WhatsApp
+              <Input
+                name="whatsapp"
+                defaultValue={editing?.whatsapp || ""}
+                placeholder="Ex: 5588999999999"
+              />
+            </Field>
+            <Field>
+              Válido até
+              <Input
+                name="valid_until"
+                type="datetime-local"
+                defaultValue={dateInputValue(editing?.valid_until)}
+              />
+            </Field>
+            <Field>
+              Status
+              <Select name="status" defaultValue={editing?.status || "draft"}>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              Prioridade
+              <Input
+                name="manual_priority"
+                type="number"
+                defaultValue={editing?.manual_priority || 100}
+              />
+            </Field>
+            <ImagePreviewInput name="cover" label="Imagem de capa" />
+            <ImagePreviewInput name="photo_1" label="Foto extra 1" />
+            <ImagePreviewInput name="photo_2" label="Foto extra 2" />
+            <ImagePreviewInput name="photo_3" label="Foto extra 3" />
+          </FormGrid>
+          <Field>
+            Descrição
+            <TextArea
+              name="description"
+              defaultValue={editing?.description || ""}
+              placeholder="Descreva estado do produto, detalhes, forma de entrega e contato."
+            />
+          </Field>
+          <Actions>
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Salvando..."
+                : editing
+                  ? "Salvar classificado"
+                  : "Criar classificado"}
+            </Button>
+            {editing && (
+              <Button
+                type="button"
+                $variant="ghost"
+                disabled={saving}
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Actions>
+        </form>
+      </EditorCard>
+
+      <ResourceTable
+        title="Classificados cadastrados"
+        empty="Nenhum classificado cadastrado ainda."
+        headers={["Classificado", "Valor", "Validade", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={classifiedList.search}
+            onSearch={classifiedList.setSearch}
+            placeholder="Pesquisar por título, descrição, valor ou WhatsApp..."
+            page={classifiedList.page}
+            totalPages={classifiedList.totalPages}
+            totalItems={classifiedList.totalItems}
+            onPage={classifiedList.setPage}
+          />
+        }
+      >
+        {classifiedList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <Muted>{item.description}</Muted>
+            </td>
+            <td>{item.price_label || "Sem valor"}</td>
+            <td>
+              {item.valid_until
+                ? new Date(item.valid_until).toLocaleDateString("pt-BR")
+                : "Sem validade"}
+            </td>
+            <td>
+              <Badge $tone={statusTone(item.status)}>
+                {statusLabels[item.status]}
+              </Badge>
+            </td>
+            <td>
+              <InlineActions>
+                <Button $variant="ghost" onClick={() => setEditing(item)}>
+                  Editar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => archiveClassified(item.id)}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteClassified(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </>
+  );
+}
+
 function JobsSection({
   cityId,
   jobs,
@@ -2703,6 +3466,8 @@ function CityUpdatesSection({
   companies,
   events,
   promotions,
+  lostFoundItems,
+  classifieds,
   jobs,
   alerts,
   onSaved,
@@ -2713,6 +3478,8 @@ function CityUpdatesSection({
   companies: Company[];
   events: EventItem[];
   promotions: Promotion[];
+  lostFoundItems: LostFoundItem[];
+  classifieds: ClassifiedItem[];
   jobs: Job[];
   alerts: AlertItem[];
   onSaved: () => Promise<void>;
@@ -2737,6 +3504,16 @@ function CityUpdatesSection({
       type: "promotion",
       id: item.id,
       label: `Promoção: ${item.title}`,
+    })),
+    ...lostFoundItems.map((item) => ({
+      type: "lost_found",
+      id: item.id,
+      label: `Achado/perdido: ${item.title}`,
+    })),
+    ...classifieds.map((item) => ({
+      type: "classified",
+      id: item.id,
+      label: `Classificado: ${item.title}`,
     })),
     ...jobs.map((item) => ({
       type: "job",
@@ -4169,6 +4946,8 @@ function PushSection({
   companies,
   events,
   promotions,
+  lostFoundItems,
+  classifieds,
   jobs,
   news,
   onSaved,
@@ -4179,13 +4958,22 @@ function PushSection({
   companies: Company[];
   events: EventItem[];
   promotions: Promotion[];
+  lostFoundItems: LostFoundItem[];
+  classifieds: ClassifiedItem[];
   jobs: Job[];
   news: NewsItem[];
   onSaved: () => Promise<void>;
 }) {
   const [selectedAlertId, setSelectedAlertId] = useState(alerts[0]?.id || "");
   const [entityType, setEntityType] = useState<
-    "company" | "event" | "promotion" | "job" | "news" | ""
+    | "company"
+    | "event"
+    | "promotion"
+    | "lost_found"
+    | "classified"
+    | "job"
+    | "news"
+    | ""
   >("");
   const [savingAlertPush, setSavingAlertPush] = useState(false);
   const [savingCustomPush, setSavingCustomPush] = useState(false);
@@ -4210,6 +4998,14 @@ function PushSection({
       return promotions.map((item) => ({ id: item.id, label: item.title }));
     }
 
+    if (entityType === "lost_found") {
+      return lostFoundItems.map((item) => ({ id: item.id, label: item.title }));
+    }
+
+    if (entityType === "classified") {
+      return classifieds.map((item) => ({ id: item.id, label: item.title }));
+    }
+
     if (entityType === "job") {
       return jobs.map((item) => ({ id: item.id, label: item.title }));
     }
@@ -4219,7 +5015,16 @@ function PushSection({
     }
 
     return [];
-  }, [companies, entityType, events, jobs, news, promotions]);
+  }, [
+    classifieds,
+    companies,
+    entityType,
+    events,
+    jobs,
+    lostFoundItems,
+    news,
+    promotions,
+  ]);
 
   async function handleAlertPush(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4374,6 +5179,8 @@ function PushSection({
                 <option value="company">Empresa</option>
                 <option value="event">Evento</option>
                 <option value="promotion">Promoção</option>
+                <option value="lost_found">Achado/perdido</option>
+                <option value="classified">Classificado</option>
                 <option value="job">Vaga</option>
                 <option value="news">Notícia</option>
               </Select>
@@ -4989,6 +5796,8 @@ function MetricsSection({
   companies,
   events,
   promotions,
+  lostFoundItems,
+  classifieds,
   jobs,
   alerts,
   cityUpdates,
@@ -4998,6 +5807,8 @@ function MetricsSection({
   companies: Company[];
   events: EventItem[];
   promotions: Promotion[];
+  lostFoundItems: LostFoundItem[];
+  classifieds: ClassifiedItem[];
   jobs: Job[];
   alerts: AlertItem[];
   cityUpdates: CityUpdate[];
@@ -5008,12 +5819,24 @@ function MetricsSection({
     companies.forEach((company) => map.set(company.id, company.name));
     events.forEach((event) => map.set(event.id, event.title));
     promotions.forEach((promotion) => map.set(promotion.id, promotion.title));
+    lostFoundItems.forEach((item) => map.set(item.id, item.title));
+    classifieds.forEach((item) => map.set(item.id, item.title));
     jobs.forEach((job) => map.set(job.id, job.title));
     alerts.forEach((alert) => map.set(alert.id, alert.title));
     cityUpdates.forEach((update) => map.set(update.id, update.title));
     pharmacies.forEach((pharmacy) => map.set(pharmacy.id, pharmacy.name));
     return map;
-  }, [alerts, cityUpdates, companies, events, jobs, pharmacies, promotions]);
+  }, [
+    alerts,
+    cityUpdates,
+    classifieds,
+    companies,
+    events,
+    jobs,
+    lostFoundItems,
+    pharmacies,
+    promotions,
+  ]);
 
   return (
     <ResourceTable

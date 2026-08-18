@@ -37,7 +37,9 @@ declare
     'public.get_pharmacy_duty_list(text)',
     'public.get_happening_now_summary(text)',
     'public.get_useful_services(text)',
-    'public.get_app_version_config(text,text)'
+    'public.get_app_version_config(text,text)',
+    'public.get_lost_found_list(text,text)',
+    'public.get_classified_list(text)'
   ];
 begin
   foreach function_signature in array function_signatures loop

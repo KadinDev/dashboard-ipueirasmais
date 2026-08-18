@@ -8,7 +8,9 @@ export type EntityKind =
   | "job"
   | "alert"
   | "city_update"
-  | "pharmacy";
+  | "pharmacy"
+  | "lost_found"
+  | "classified";
 export type PlacementKind =
   | "basic"
   | "featured"
@@ -40,7 +42,8 @@ export type Category = {
     | "job"
     | "alert"
     | "city_update"
-    | "pharmacy";
+    | "pharmacy"
+    | "classified";
   name: string;
   slug: string;
 };
@@ -281,6 +284,41 @@ export type Promotion = {
   manual_priority: number;
   published_at: string | null;
   created_at?: string;
+};
+
+export type LostFoundItem = {
+  id: string;
+  city_id: string;
+  title: string;
+  slug: string;
+  item_type: "lost" | "found";
+  description: string | null;
+  contact_label: string | null;
+  image_media_id?: string | null;
+  occurred_at: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+  created_at?: string | null;
+};
+
+export type ClassifiedItem = {
+  id: string;
+  city_id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  price_label: string | null;
+  whatsapp: string | null;
+  cover_media_id?: string | null;
+  photo_1_media_id?: string | null;
+  photo_2_media_id?: string | null;
+  photo_3_media_id?: string | null;
+  valid_until: string | null;
+  status: ContentStatus;
+  manual_priority: number;
+  published_at: string | null;
+  created_at?: string | null;
 };
 
 export type Job = {
