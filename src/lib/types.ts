@@ -191,6 +191,51 @@ export type ClickSummary = {
   total: number;
 };
 
+export type SubmissionRequest = {
+  id: string;
+  city_id: string;
+  content_type:
+    | "company"
+    | "event"
+    | "job"
+    | "promotion"
+    | "classified"
+    | "lost_found";
+  requester_name: string;
+  requester_whatsapp: string;
+  requester_email: string | null;
+  title: string;
+  description: string | null;
+  payload: Record<string, unknown>;
+  image_urls: string[];
+  status:
+    | "pending"
+    | "reviewing"
+    | "contacted"
+    | "approved"
+    | "rejected"
+    | "archived";
+  admin_notes: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type CityHallSubmission = {
+  id: string;
+  city_id: string;
+  created_by: string | null;
+  content_type: "alert" | "news";
+  title: string;
+  summary: string | null;
+  body: string | null;
+  payload: Record<string, unknown>;
+  image_urls: string[];
+  status: "pending" | "reviewing" | "approved" | "rejected" | "archived";
+  admin_notes: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
 export type NotificationItem = {
   id: string;
   city_id: string;

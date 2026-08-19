@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Briefcase,
   ClockAlert,
+  ClipboardList,
   Crown,
   Bell,
   AlertTriangle,
@@ -57,6 +58,7 @@ import type {
   AlertItem,
   Category,
   City,
+  CityHallSubmission,
   CityUpdate,
   ClickSummary,
   ClassifiedItem,
@@ -74,6 +76,7 @@ import type {
   Plan,
   PushCampaign,
   Promotion,
+  SubmissionRequest,
   UsefulService,
 } from "./lib/types";
 
@@ -85,6 +88,7 @@ type Tab =
   | "expired"
   | "lostFound"
   | "classifieds"
+  | "submissions"
   | "jobs"
   | "alerts"
   | "cityUpdates"
@@ -105,6 +109,7 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "expired", label: "Expirados", icon: ClockAlert },
   { id: "lostFound", label: "Achados e perdidos", icon: Search },
   { id: "classifieds", label: "Classificados", icon: ShoppingBag },
+  { id: "submissions", label: "Solicitações", icon: ClipboardList },
   { id: "jobs", label: "Vagas", icon: Briefcase },
   { id: "alerts", label: "Avisos", icon: AlertTriangle },
   { id: "cityUpdates", label: "Novidades", icon: Sparkles },
@@ -154,6 +159,53 @@ const pushStatusLabels = {
   sent: "Enviado",
   failed: "Falhou",
   cancelled: "Cancelado",
+};
+
+const submissionStatusLabels = {
+  pending: "Pendente",
+  reviewing: "Em análise",
+  contacted: "Contato feito",
+  approved: "Aprovado",
+  rejected: "Recusado",
+  archived: "Arquivado",
+};
+
+const publicSubmissionTypeLabels = {
+  company: "Empresa",
+  event: "Evento",
+  job: "Vaga",
+  promotion: "Promoção",
+  classified: "Classificado",
+  lost_found: "Achado/perdido",
+};
+
+const cityHallSubmissionTypeLabels = {
+  alert: "Aviso",
+  news: "Notícia",
+};
+
+const submissionPayloadLabels: Record<string, string> = {
+  address: "Endereço",
+  affected_areas: "Bairros/áreas afetadas",
+  classified_whatsapp: "WhatsApp",
+  company_name: "Nome da empresa",
+  company_whatsapp: "WhatsApp da empresa",
+  contact_info: "Como entrar em contato",
+  contract_type: "Tipo de vaga",
+  ends_at: "Fim",
+  event_whatsapp: "WhatsApp",
+  expected_resolution: "Previsão de normalização",
+  importance: "Importância",
+  instagram: "Instagram",
+  item_type: "Tipo",
+  job_whatsapp: "WhatsApp",
+  neighborhood: "Bairro",
+  place: "Local",
+  price: "Preço",
+  requirements: "Requisitos",
+  salary: "Salário",
+  starts_at: "Início",
+  valid_until: "Válida até",
 };
 
 const usefulServiceTypeLabels = {
@@ -583,6 +635,12 @@ function AdminDashboard() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
   const [classifieds, setClassifieds] = useState<ClassifiedItem[]>([]);
+  const [submissionRequests, setSubmissionRequests] = useState<
+    SubmissionRequest[]
+  >([]);
+  const [cityHallSubmissions, setCityHallSubmissions] = useState<
+    CityHallSubmission[]
+  >([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [cityUpdates, setCityUpdates] = useState<CityUpdate[]>([]);
@@ -629,6 +687,14 @@ function AdminDashboard() {
         .from("classifieds")
         .select("*")
         .order("published_at", { ascending: false }),
+      supabase
+        .from("submission_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("city_hall_submissions")
+        .select("*")
+        .order("created_at", { ascending: false }),
       supabase
         .from("jobs")
         .select("*")
@@ -693,20 +759,24 @@ function AdminDashboard() {
       setPromotions((requests[6].data || []) as Promotion[]);
       setLostFoundItems((requests[7].data || []) as LostFoundItem[]);
       setClassifieds((requests[8].data || []) as ClassifiedItem[]);
-      setJobs((requests[9].data || []) as Job[]);
-      setAlerts((requests[10].data || []) as AlertItem[]);
-      setCityUpdates((requests[11].data || []) as CityUpdate[]);
-      setPharmacies((requests[12].data || []) as Pharmacy[]);
-      setPharmacyShifts((requests[13].data || []) as PharmacyDutyShift[]);
-      setUsefulServices((requests[14].data || []) as UsefulService[]);
-      setAppVersions((requests[15].data || []) as AppVersion[]);
-      setNews((requests[16].data || []) as NewsItem[]);
-      setNotifications((requests[17].data || []) as NotificationItem[]);
-      setPushCampaigns((requests[18].data || []) as PushCampaign[]);
-      setBanners((requests[19].data || []) as Banner[]);
-      setPlans((requests[20].data || []) as Plan[]);
-      setPlacements((requests[21].data || []) as Placement[]);
-      setMetrics((requests[22].data || []) as ClickSummary[]);
+      setSubmissionRequests((requests[9].data || []) as SubmissionRequest[]);
+      setCityHallSubmissions(
+        (requests[10].data || []) as CityHallSubmission[],
+      );
+      setJobs((requests[11].data || []) as Job[]);
+      setAlerts((requests[12].data || []) as AlertItem[]);
+      setCityUpdates((requests[13].data || []) as CityUpdate[]);
+      setPharmacies((requests[14].data || []) as Pharmacy[]);
+      setPharmacyShifts((requests[15].data || []) as PharmacyDutyShift[]);
+      setUsefulServices((requests[16].data || []) as UsefulService[]);
+      setAppVersions((requests[17].data || []) as AppVersion[]);
+      setNews((requests[18].data || []) as NewsItem[]);
+      setNotifications((requests[19].data || []) as NotificationItem[]);
+      setPushCampaigns((requests[20].data || []) as PushCampaign[]);
+      setBanners((requests[21].data || []) as Banner[]);
+      setPlans((requests[22].data || []) as Plan[]);
+      setPlacements((requests[23].data || []) as Placement[]);
+      setMetrics((requests[24].data || []) as ClickSummary[]);
     }
 
     setLoading(false);
@@ -855,6 +925,14 @@ function AdminDashboard() {
           <ClassifiedsSection
             cityId={cityId}
             classifieds={classifieds}
+            onSaved={loadData}
+          />
+        )}
+
+        {activeTab === "submissions" && (
+          <SubmissionsSection
+            submissionRequests={submissionRequests}
+            cityHallSubmissions={cityHallSubmissions}
             onSaved={loadData}
           />
         )}
@@ -2949,6 +3027,374 @@ function ClassifiedsSection({
         ))}
       </ResourceTable>
     </>
+  );
+}
+
+function SubmissionsSection({
+  submissionRequests,
+  cityHallSubmissions,
+  onSaved,
+}: {
+  submissionRequests: SubmissionRequest[];
+  cityHallSubmissions: CityHallSubmission[];
+  onSaved: () => Promise<void>;
+}) {
+  const publicList = usePaginatedSearch(submissionRequests, (item) =>
+    [
+      item.title,
+      item.description,
+      item.requester_name,
+      item.requester_whatsapp,
+      item.content_type,
+      item.status,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const cityHallList = usePaginatedSearch(cityHallSubmissions, (item) =>
+    [item.title, item.summary, item.body, item.content_type, item.status]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const [selectedSubmission, setSelectedSubmission] = useState<
+    | { source: "public"; item: SubmissionRequest }
+    | { source: "cityHall"; item: CityHallSubmission }
+    | null
+  >(null);
+
+  async function updatePublicStatus(
+    id: string,
+    status: SubmissionRequest["status"],
+  ) {
+    await assertNoError(
+      await supabase.from("submission_requests").update({ status }).eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function updateCityHallStatus(
+    id: string,
+    status: CityHallSubmission["status"],
+  ) {
+    await assertNoError(
+      await supabase
+        .from("city_hall_submissions")
+        .update({ status })
+        .eq("id", id),
+    );
+    await onSaved();
+  }
+
+  async function deletePublicRequest(id: string) {
+    await deleteRows("submission_requests", id, onSaved);
+  }
+
+  async function deleteCityHallRequest(id: string) {
+    await deleteRows("city_hall_submissions", id, onSaved);
+  }
+
+  return (
+    <>
+      <Card>
+        <CardTitle>Solicitações recebidas</CardTitle>
+        <Muted>
+          Esta tela é uma triagem. O envio público e o painel da Prefeitura não
+          publicam nada automaticamente no app. Revise, entre em contato e faça
+          o cadastro final nas telas oficiais.
+        </Muted>
+      </Card>
+
+      <ResourceTable
+        title="Envios do portal público"
+        empty="Nenhuma solicitação pública recebida ainda."
+        headers={["Solicitação", "Tipo", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={publicList.search}
+            onSearch={publicList.setSearch}
+            placeholder="Pesquisar por título, contato, tipo ou status..."
+            page={publicList.page}
+            totalPages={publicList.totalPages}
+            totalItems={publicList.totalItems}
+            onPage={publicList.setPage}
+          />
+        }
+      >
+        {publicList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <MoreButton
+                type="button"
+                onClick={() => setSelectedSubmission({ source: "public", item })}
+              >
+                Ver mais
+              </MoreButton>
+            </td>
+            <td>{publicSubmissionTypeLabels[item.content_type]}</td>
+            <td>
+              <Select
+                value={item.status}
+                onChange={(event) =>
+                  updatePublicStatus(
+                    item.id,
+                    event.target.value as SubmissionRequest["status"],
+                  )
+                }
+              >
+                {Object.entries(submissionStatusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </td>
+            <td>
+              <InlineActions>
+                <Button
+                  $variant="danger"
+                  onClick={() => updatePublicStatus(item.id, "archived")}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deletePublicRequest(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+
+      <ResourceTable
+        title="Envios da Prefeitura"
+        empty="Nenhuma solicitação da Prefeitura recebida ainda."
+        headers={["Solicitação", "Tipo", "Status", "Ações"]}
+        controls={
+          <TableControls
+            search={cityHallList.search}
+            onSearch={cityHallList.setSearch}
+            placeholder="Pesquisar por título, texto, tipo ou status..."
+            page={cityHallList.page}
+            totalPages={cityHallList.totalPages}
+            totalItems={cityHallList.totalItems}
+            onPage={cityHallList.setPage}
+          />
+        }
+      >
+        {cityHallList.visibleItems.map((item) => (
+          <tr key={item.id}>
+            <td>
+              <strong>{item.title}</strong>
+              <MoreButton
+                type="button"
+                onClick={() =>
+                  setSelectedSubmission({ source: "cityHall", item })
+                }
+              >
+                Ver mais
+              </MoreButton>
+            </td>
+            <td>{cityHallSubmissionTypeLabels[item.content_type]}</td>
+            <td>
+              <Select
+                value={item.status}
+                onChange={(event) =>
+                  updateCityHallStatus(
+                    item.id,
+                    event.target.value as CityHallSubmission["status"],
+                  )
+                }
+              >
+                {Object.entries(submissionStatusLabels)
+                  .filter(([value]) => value !== "contacted")
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </Select>
+            </td>
+            <td>
+              <InlineActions>
+                <Button
+                  $variant="danger"
+                  onClick={() => updateCityHallStatus(item.id, "archived")}
+                >
+                  Arquivar
+                </Button>
+                <Button
+                  $variant="danger"
+                  onClick={() => deleteCityHallRequest(item.id)}
+                >
+                  Excluir
+                </Button>
+              </InlineActions>
+            </td>
+          </tr>
+        ))}
+      </ResourceTable>
+
+      {selectedSubmission ? (
+        <SubmissionModal
+          source={selectedSubmission.source}
+          item={selectedSubmission.item}
+          onClose={() => setSelectedSubmission(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function SubmissionModal({
+  source,
+  item,
+  onClose,
+}: {
+  source: "public" | "cityHall";
+  item: SubmissionRequest | CityHallSubmission;
+  onClose: () => void;
+}) {
+  const typeLabel =
+    source === "public"
+      ? publicSubmissionTypeLabels[(item as SubmissionRequest).content_type]
+      : cityHallSubmissionTypeLabels[(item as CityHallSubmission).content_type];
+  const publicItem = source === "public" ? (item as SubmissionRequest) : null;
+  const cityHallItem =
+    source === "cityHall" ? (item as CityHallSubmission) : null;
+  const isJobRequest = publicItem?.content_type === "job";
+  const jobRequirements = String(publicItem?.payload?.requirements || "").trim();
+
+  return (
+    <ModalBackdrop onClick={onClose}>
+      <ModalCard onClick={(event) => event.stopPropagation()}>
+        <ModalHeader>
+          <div>
+            <Badge $tone="blue">{typeLabel}</Badge>
+            <h2>{item.title}</h2>
+            <Muted>
+              Enviado em {new Date(item.created_at).toLocaleString("pt-BR")}
+            </Muted>
+          </div>
+          <Button type="button" $variant="ghost" onClick={onClose}>
+            Fechar
+          </Button>
+        </ModalHeader>
+
+        <SubmissionInfoGrid>
+          <SubmissionInfo>
+            <span>Status</span>
+            <strong>{submissionStatusLabels[item.status]}</strong>
+          </SubmissionInfo>
+          {publicItem ? (
+            <>
+              <SubmissionInfo>
+                <span>Nome</span>
+                <strong>{publicItem.requester_name || "Não informado"}</strong>
+              </SubmissionInfo>
+              <SubmissionInfo>
+                <span>WhatsApp</span>
+                <strong>{publicItem.requester_whatsapp || "Não informado"}</strong>
+              </SubmissionInfo>
+              <SubmissionInfo>
+                <span>E-mail</span>
+                <strong>{publicItem.requester_email || "Não informado"}</strong>
+              </SubmissionInfo>
+            </>
+          ) : null}
+        </SubmissionInfoGrid>
+
+        {isJobRequest ? (
+          <SubmissionBlock>
+            <strong>Descrição da vaga</strong>
+            <p>{publicItem.description || "Não informado"}</p>
+          </SubmissionBlock>
+        ) : null}
+
+        {isJobRequest ? (
+          <SubmissionBlock>
+            <strong>Requisitos</strong>
+            <p>{jobRequirements || "Não informado"}</p>
+          </SubmissionBlock>
+        ) : null}
+
+        {publicItem?.description && !isJobRequest ? (
+          <SubmissionBlock>
+            <strong>Descrição</strong>
+            <p>{publicItem.description}</p>
+          </SubmissionBlock>
+        ) : null}
+
+        {cityHallItem?.summary ? (
+          <SubmissionBlock>
+            <strong>Resumo</strong>
+            <p>{cityHallItem.summary}</p>
+          </SubmissionBlock>
+        ) : null}
+
+        {cityHallItem?.body ? (
+          <SubmissionBlock>
+            <strong>Conteúdo</strong>
+            <p>{cityHallItem.body}</p>
+          </SubmissionBlock>
+        ) : null}
+
+        <PayloadPreview
+          payload={item.payload}
+          imageUrls={item.image_urls}
+          hiddenKeys={isJobRequest ? ["requirements"] : []}
+        />
+      </ModalCard>
+    </ModalBackdrop>
+  );
+}
+
+function PayloadPreview({
+  payload,
+  imageUrls,
+  hiddenKeys = [],
+}: {
+  payload: Record<string, unknown>;
+  imageUrls: string[];
+  hiddenKeys?: string[];
+}) {
+  const hiddenKeySet = new Set(hiddenKeys);
+  const entries = Object.entries(payload || {}).filter(([, value]) => {
+    if (value === null || value === undefined || value === "") return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  }).filter(([key]) => !hiddenKeySet.has(key));
+
+  return (
+    <SubmissionDetails>
+      {entries.length ? (
+        <SubmissionBlock>
+          <strong>Informações enviadas</strong>
+          <SubmissionFields>
+            {entries.map(([key, value]) => (
+              <SubmissionInfo key={key}>
+                <span>{submissionPayloadLabels[key] || key}</span>
+                <strong>
+                  {Array.isArray(value) ? value.join(", ") : String(value)}
+                </strong>
+              </SubmissionInfo>
+            ))}
+          </SubmissionFields>
+        </SubmissionBlock>
+      ) : null}
+      {imageUrls.length ? (
+        <SubmissionImages>
+          {imageUrls.slice(0, 4).map((url) => (
+            <a key={url} href={url} target="_blank" rel="noreferrer">
+              imagem
+            </a>
+          ))}
+        </SubmissionImages>
+      ) : null}
+    </SubmissionDetails>
   );
 }
 
@@ -6026,6 +6472,130 @@ const InlineActions = styled.div`
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+`;
+
+const MoreButton = styled.button`
+  border: 0;
+  background: transparent;
+  color: #ff7a00;
+  cursor: pointer;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 5px;
+  padding: 0;
+  text-align: left;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(5, 3, 10, 0.78);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+`;
+
+const ModalCard = styled(Card)`
+  width: min(760px, 100%);
+  max-height: min(86vh, 820px);
+  overflow: auto;
+  margin: 0;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 10px 0 4px;
+  }
+
+  @media (max-width: 680px) {
+    flex-direction: column;
+  }
+`;
+
+const SubmissionInfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+
+  @media (max-width: 680px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const SubmissionFields = styled(SubmissionInfoGrid)`
+  margin: 0;
+`;
+
+const SubmissionInfo = styled.div`
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+
+  span {
+    color: #a89abc;
+    font-size: 12px;
+  }
+
+  strong {
+    color: #fff;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+`;
+
+const SubmissionBlock = styled.div`
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+
+  > strong {
+    color: #fff;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  p {
+    color: #d9d0e7;
+    line-height: 1.55;
+    margin: 0;
+    white-space: pre-wrap;
+  }
+`;
+
+const SubmissionDetails = styled.div`
+  margin-top: 12px;
+`;
+
+const SubmissionImages = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+
+  a {
+    color: #ff7a00;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+  }
 `;
 
 const TableControlsWrap = styled.div`
