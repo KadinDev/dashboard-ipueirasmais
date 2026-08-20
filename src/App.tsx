@@ -4360,6 +4360,10 @@ function PharmaciesSection({
     await onSaved();
   }
 
+  async function deleteShift(id: string) {
+    await deleteRows("pharmacy_duty_shifts", id, onSaved);
+  }
+
   async function archiveUsefulService(id: string) {
     await supabase
       .from("useful_services")
@@ -4781,9 +4785,14 @@ function PharmaciesSection({
               </Badge>
             </td>
             <td>
-              <Button $variant="danger" onClick={() => archiveShift(item.id)}>
-                Arquivar
-              </Button>
+              <InlineActions>
+                <Button $variant="danger" onClick={() => archiveShift(item.id)}>
+                  Arquivar
+                </Button>
+                <Button $variant="danger" onClick={() => deleteShift(item.id)}>
+                  Excluir
+                </Button>
+              </InlineActions>
             </td>
           </tr>
         ))}
