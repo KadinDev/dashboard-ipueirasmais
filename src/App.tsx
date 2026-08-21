@@ -351,6 +351,14 @@ function messageFromError(error: unknown) {
   return "Não foi possível salvar. Verifique os campos e tente novamente.";
 }
 
+function isJwtIssuedAtFutureError(message?: string | null) {
+  return normalizedText(message || "").includes("jwt issued at future");
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
 async function assertNoError<T extends { error: unknown }>(result: T) {
   if (result.error) throw result.error;
   return result;
@@ -660,7 +668,7 @@ function AdminDashboard() {
 
   const cityId = cities[0]?.id || "";
 
-  async function loadData() {
+  async function loadData(hasRetriedJwtClockSkew = false) {
     setLoading(true);
     setError("");
 
@@ -748,6 +756,16 @@ function AdminDashboard() {
 
     const firstError = requests.find((request) => request.error)?.error;
     if (firstError) {
+      if (
+        !hasRetriedJwtClockSkew &&
+        isJwtIssuedAtFutureError(firstError.message)
+      ) {
+        await wait(1200);
+        await supabase.auth.refreshSession();
+        await loadData(true);
+        return;
+      }
+
       setError(firstError.message);
     } else {
       setCities((requests[0].data || []) as City[]);
@@ -835,7 +853,7 @@ function AdminDashboard() {
           })}
         </Nav>
         <SidebarFooter>
-          <Button $variant="ghost" onClick={loadData}>
+          <Button $variant="ghost" onClick={() => loadData()}>
             <RefreshCcw size={16} /> Atualizar
           </Button>
           <Button $variant="ghost" onClick={() => supabase.auth.signOut()}>
