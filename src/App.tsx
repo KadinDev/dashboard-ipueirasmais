@@ -675,14 +675,10 @@ function AdminDashboard() {
     const requests = await Promise.all([
       supabase.from("cities").select("*").order("name"),
       supabase.from("categories").select("*").order("kind").order("sort_order"),
-      supabase
-        .from("companies")
-        .select("*")
-        .order("manual_priority")
-        .order("name"),
+      supabase.rpc("admin_list_commercial_data", { p_resource: "companies" }),
       supabase.from("company_contacts").select("*").order("sort_order"),
       supabase.from("company_hours").select("*").order("day_of_week"),
-      supabase.from("events").select("*").order("starts_at"),
+      supabase.rpc("admin_list_commercial_data", { p_resource: "events" }),
       supabase
         .from("promotions")
         .select("*")
@@ -741,12 +737,9 @@ function AdminDashboard() {
         .from("push_campaigns")
         .select("*")
         .order("created_at", { ascending: false }),
-      supabase.from("banners").select("*").order("manual_priority"),
+      supabase.rpc("admin_list_commercial_data", { p_resource: "banners" }),
       supabase.from("plans").select("*").order("price_cents"),
-      supabase
-        .from("placements")
-        .select("*")
-        .order("created_at", { ascending: false }),
+      supabase.rpc("admin_list_commercial_data", { p_resource: "placements" }),
       supabase
         .from("admin_click_summary_daily")
         .select("*")
