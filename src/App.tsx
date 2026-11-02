@@ -6185,7 +6185,7 @@ function BannersSection({
             <TextArea name="subtitle" defaultValue={editing?.subtitle || ""} />
           </Field>
           <Field>
-            Observações internas
+            Texto do selo no banner (público)
             <TextArea name="notes" defaultValue={editing?.notes || ""} />
           </Field>
 
